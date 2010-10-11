@@ -9,7 +9,7 @@ local colours = {
 	rb.lcd_rgbpack(51, 51, 51),
 }
 local num_colours = table.getn(colours)
-local difficulty = 2 --1:easy, 2:medium, 3:hard
+local difficulty = 1 --1:easy, 2:medium, 3:hard
 local highscores = {false, false, false}
 
 SCORES_FILE = "/pixel-painter.score"
@@ -36,6 +36,74 @@ function init_variables(difficulty)
 	num_moves = 0
 end
 
+function deepcopy(object)
+    local lookup_table = {}
+    local function _copy(object)
+        if type(object) ~= "table" then
+            return object
+        elseif lookup_table[object] then
+            return lookup_table[object]
+        end
+        local new_table = {}
+        lookup_table[object] = new_table
+        for index, value in pairs(object) do
+            new_table[_copy(index)] = _copy(value)
+        end
+        return setmetatable(new_table, getmetatable(object))
+    end
+    return _copy(object)
+end
+
+function count_differences(board1, board2)
+	local count = 0
+
+	for x=1,horizontal_dimension do
+		for y=1,vertical_dimension do
+			if board1[x][y] ~= board2[x][y] then
+				count = count + 1
+			end
+		end
+	end
+
+	return count
+end
+
+function get_preferred_colour(game_board)
+	local biggest_change = 0
+	local biggest_index = 0
+
+	for i=1,num_colours do
+		if i ~= game_board[1][1] then
+			local board_copy = deepcopy(game_board)
+
+			fill_board(board_copy, i)
+			fill_board(board_copy, 0)
+
+			local num_changed = count_differences(game_board, board_copy)
+			if num_changed > biggest_change then
+				biggest_index = i
+				biggest_change = num_changed
+			end
+		end
+	end
+
+	return biggest_index
+end
+
+function calculate_par(game_board)
+	local board_copy = deepcopy(game_board)
+	local moves = 0
+
+	repeat
+		local colour = get_preferred_colour(board_copy)
+
+		fill_board(board_copy, colour)
+		moves = moves + 1
+	until check_win(board_copy)
+
+	return moves
+end
+
 function generate_board()
 	board = {}
 	for x=1,horizontal_dimension do
@@ -45,6 +113,7 @@ function generate_board()
 		end
 	end
 
+	par = calculate_par(board)
 end
 
 --Flood fills the board from the top left using selected_colour
@@ -95,11 +164,11 @@ function draw_chooser()
 	rb.lcd_fillrect(xpos, ypos, chooser_pip_width, chooser_pip_width)
 end
 
---TODO: Set the positions and text appropriately
+--TODO: Set the positions appropriately
 function draw_moves()
 	rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
 	rb.lcd_putsxy(177, 140, "Mov: "..num_moves)
-	rb.lcd_putsxy(177, 152, "Par: 20")
+	rb.lcd_putsxy(177, 152, "Par: "..par)
 	if highscores[difficulty] then
 		rb.lcd_putsxy(177, 164, "Best: "..highscores[difficulty])
 	end
@@ -113,10 +182,10 @@ function redraw_game()
 	rb.lcd_update()
 end
 
-function check_win()
+function check_win(game_board)
 	for x=1,horizontal_dimension do
 		for y=1,vertical_dimension do
-			if board[x][y] ~= board[1][1] then
+			if game_board[x][y] ~= game_board[1][1] then
 				return false
 			end
 		end
@@ -250,78 +319,11 @@ end
 
 ----Run on load
 
---if not load_game() then
-	--init_game(difficulty)
---end
---load_scores()
---redraw_game()
-
-function deepcopy(object)
-    local lookup_table = {}
-    local function _copy(object)
-        if type(object) ~= "table" then
-            return object
-        elseif lookup_table[object] then
-            return lookup_table[object]
-        end
-        local new_table = {}
-        lookup_table[object] = new_table
-        for index, value in pairs(object) do
-            new_table[_copy(index)] = _copy(value)
-        end
-        return setmetatable(new_table, getmetatable(object))
-    end
-    return _copy(object)
+if not load_game() then
+	init_game(difficulty)
 end
-
-function count_differences(board1, board2)
-	local count = 0
-
-	for x=1,horizontal_dimension do
-		for y=1,vertical_dimension do
-			if board1[x][y] ~= board2[x][y] then
-				count = count + 1
-			end
-		end
-	end
-
-	return count
-end
-
-function get_preferred_colour(game_board)
-	local biggest_change = 0
-	local biggest_index = 0
-
-	for i=1,num_colours do
-		if i ~= game_board[1][1] then
-			local board_copy = deepcopy(game_board)
-
-			fill_board(board_copy, i)
-			fill_board(board_copy, 0)
-
-			local num_changed = count_differences(game_board, board_copy)
-			if num_changed > biggest_change then
-				biggest_index = i
-				biggest_change = num_changed
-			end
-		end
-	end
-
-	return biggest_index
-end
-
-init_game(3)
+load_scores()
 redraw_game()
-
-repeat
-	selected_colour = get_preferred_colour(board)
-
-	fill_board()
-	num_moves = num_moves + 1
-	redraw_game()
-until check_win()
-rb.splash(3*rb.HZ, "You took " .. num_moves .. " moves.")
-os.exit()
 
 repeat
 	local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
@@ -331,7 +333,7 @@ repeat
 			fill_board()
 			num_moves = num_moves + 1
 			redraw_game()
-			if check_win() then
+			if check_win(board) then
 				if not highscores[difficulty] or num_moves < highscores[difficulty] then
 					rb.splash(3*rb.HZ, num_moves .. " moves is a new high score.")
 					highscores[difficulty] = num_moves
