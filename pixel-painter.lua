@@ -1,5 +1,6 @@
 require("actions")
 
+--The colours used by the game
 local colours = {
 	rb.lcd_rgbpack(255, 119, 34),
 	rb.lcd_rgbpack(255, 255, 102),
@@ -15,6 +16,7 @@ local highscores = {false, false, false}
 SCORES_FILE = "/pixel-painter.score"
 SAVE_FILE = "/pixel-painter.save"
 
+--Convenience function
 function init_game(difficulty)
 	init_variables(difficulty)
 	generate_board()
@@ -24,18 +26,19 @@ end
 function init_variables(difficulty)
 	vertical_dimension = diff_to_dimension(difficulty)
 	horizontal_dimension = vertical_dimension
-	block_width = rb.LCD_HEIGHT / vertical_dimension
+	block_width = rb.LCD_HEIGHT / vertical_dimension --pixel dimension of each game square
 
-	chooser_xpos = (horizontal_dimension)*block_width + 2
+	chooser_xpos = (horizontal_dimension)*block_width + 2 --xpos of the colour chooser
 	chooser_width = rb.LCD_WIDTH - chooser_xpos
 	chooser_height = rb.LCD_HEIGHT / num_colours - 6
-	chooser_pip_width = 6
+	chooser_pip_width = 6 --pixel dimension of the selected colour pip
 
 	--Game variables
-	selected_colour = 1
+	selected_colour = 1 --index of the current colour
 	num_moves = 0
 end
 
+--Utility function makes a copy of the passed table
 function deepcopy(object)
     local lookup_table = {}
     local function _copy(object)
@@ -54,6 +57,8 @@ function deepcopy(object)
     return _copy(object)
 end
 
+--Returns the number of blocks which have changed colour between the two
+--boards, used by calculate_par
 function count_differences(board1, board2)
 	local count = 0
 
@@ -68,6 +73,8 @@ function count_differences(board1, board2)
 	return count
 end
 
+--Gets the move which fills in the most colour for the passed board,
+--used by calculate_par
 function get_preferred_colour(game_board)
 	local biggest_change = 0
 	local biggest_index = 0
@@ -76,6 +83,8 @@ function get_preferred_colour(game_board)
 		if i ~= game_board[1][1] then
 			local board_copy = deepcopy(game_board)
 
+			--Fill with zeroes after applying the colour so
+			--count_differences works
 			fill_board(board_copy, i)
 			fill_board(board_copy, 0)
 
@@ -90,6 +99,8 @@ function get_preferred_colour(game_board)
 	return biggest_index
 end
 
+--Solves the board using a simple algorithm and returns the number of
+--moves required
 function calculate_par(game_board)
 	local board_copy = deepcopy(game_board)
 	local moves = 0
@@ -104,6 +115,8 @@ function calculate_par(game_board)
 	return moves
 end
 
+--Populates the global board variable with random colours, and
+--calculates its 'par' value
 function generate_board()
 	board = {}
 	for x=1,horizontal_dimension do
@@ -143,6 +156,7 @@ function fill_board(game_board, fill_colour, x, y, original_colour)
 	return 0
 end
 
+--Draws the game board to screen
 function draw_board()
 	for x=1,horizontal_dimension do
 		for y=1,vertical_dimension do
@@ -152,6 +166,7 @@ function draw_board()
 	end
 end
 
+--Draw the colour chooser on the side, along with selected pip
 function draw_chooser()
 	for i=1,num_colours do
 		rb.lcd_set_foreground(colours[i])
@@ -165,15 +180,17 @@ function draw_chooser()
 end
 
 --TODO: Set the positions appropriately
+--Draw the current moves, par and high score
 function draw_moves()
 	rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
-	rb.lcd_putsxy(177, 140, "Mov: "..num_moves)
-	rb.lcd_putsxy(177, 152, "Par: "..par)
+	rb.lcd_putsxy(chooser_xpos, 140, "Mov: "..num_moves)
+	rb.lcd_putsxy(chooser_xpos, 152, "Par: "..par)
 	if highscores[difficulty] then
-		rb.lcd_putsxy(177, 164, "Best: "..highscores[difficulty])
+		rb.lcd_putsxy(chooser_xpos, 164, "Best: "..highscores[difficulty])
 	end
 end
 
+--Convenience function to redraw the whole board to screen
 function redraw_game()
 	rb.lcd_clear_display()
 	draw_board()
@@ -182,6 +199,7 @@ function redraw_game()
 	rb.lcd_update()
 end
 
+--Checks whether the given board is a single colour
 function check_win(game_board)
 	for x=1,horizontal_dimension do
 		for y=1,vertical_dimension do
@@ -194,6 +212,8 @@ function check_win(game_board)
 	return true
 end
 
+--Attempt to load the save file into the game variables
+--Returns true on success, false otherwise
 function load_game()
 	local f = io.open(SAVE_FILE, "r")
 	if f == nil then
@@ -223,6 +243,7 @@ function load_game()
 	end
 end
 
+--Saves the game state to file
 function save_game()
 	local f = io.open(SAVE_FILE, "w")
 	f:write(difficulty,"\n")
@@ -238,6 +259,8 @@ function save_game()
 	f:close()
 end
 
+--Loads the high scores from file
+--Returns true on success, false otherwise
 function load_scores()
 	local f = io.open(SCORES_FILE, "r")
 	if f == nil then
@@ -258,6 +281,7 @@ function load_scores()
 	end
 end
 
+--Saves the high scores to file
 function save_scores()
 	local f = io.open(SCORES_FILE, "w")
 	for i=1,3 do
@@ -280,6 +304,7 @@ function diff_to_dimension(difficulty)
 	end
 end
 
+--Draws help to screen, waits for a keypress to exit
 function app_help()
 	redraw_game()
 	--rb.lcd_clear_display()
@@ -289,6 +314,7 @@ end
 
 --TODO: Some way of exiting difficulty menu back to main one, don't kill
 --the save file then
+--Draws the application menu and handles its logic
 function app_menu()
 	local options = {"Resume game", "Start new game", "Change difficulty", 
 		"Help", "Quit without saving", "Quit"}
@@ -318,6 +344,8 @@ function app_menu()
 	end
 end
 
+--Determine what victory text to show depending on the relation of the
+--score to the calculated par value
 function win_text(delta)
 	if delta < 0 then
 		return "You were "..(delta*-1).." under par"
@@ -328,7 +356,9 @@ function win_text(delta)
 	end
 end
 
-----Run on load
+----------------------------------
+--Code under here is run on load--
+----------------------------------
 
 if not load_game() then
 	init_game(difficulty)
