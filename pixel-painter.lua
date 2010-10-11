@@ -9,7 +9,7 @@ local colours = {
 	rb.lcd_rgbpack(51, 51, 51),
 }
 local num_colours = table.getn(colours)
-local difficulty = 1 --1:easy, 2:medium, 3:hard
+local difficulty = 2 --1:easy, 2:medium, 3:hard
 local highscores = {false, false, false}
 
 SCORES_FILE = "/pixel-painter.score"
@@ -318,6 +318,16 @@ function app_menu()
 	end
 end
 
+function win_text(delta)
+	if delta < 0 then
+		return "You were "..(delta*-1).." under par"
+	elseif delta > 0 then
+		return "You were "..delta.." over par"
+	else
+		return "You attained par"
+	end
+end
+
 ----Run on load
 
 if not load_game() then
@@ -335,12 +345,13 @@ repeat
 			num_moves = num_moves + 1
 			redraw_game()
 			if check_win(board) then
-				if not highscores[difficulty] or num_moves < highscores[difficulty] then
-					rb.splash(3*rb.HZ, num_moves .. " moves is a new high score.")
-					highscores[difficulty] = num_moves
+				local par_diff = num_moves - par
+				if not highscores[difficulty] or par_diff < highscores[difficulty] then
+					rb.splash(3*rb.HZ, win_text(par_diff)..", a new high score!")
+					highscores[difficulty] = par_diff
 					save_scores()
 				else
-					rb.splash(3*rb.HZ, "You took " .. num_moves .. " moves.")
+					rb.splash(3*rb.HZ, win_text(par_diff)..".")
 				end
 				os.remove(SAVE_FILE)
 				os.exit()
