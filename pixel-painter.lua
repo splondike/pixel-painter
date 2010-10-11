@@ -203,6 +203,7 @@ function load_game()
 		--Set up the positioning variables
 		init_variables(difficulty)
 
+		par = tonumber(f:read())
 		num_moves = tonumber(f:read())
 		selected_colour = tonumber(f:read())
 
@@ -225,6 +226,7 @@ end
 function save_game()
 	local f = io.open(SAVE_FILE, "w")
 	f:write(difficulty,"\n")
+	f:write(par,"\n")
 	f:write(num_moves,"\n")
 	f:write(selected_colour,"\n")
 	for x=1,horizontal_dimension do
@@ -259,7 +261,6 @@ end
 function save_scores()
 	local f = io.open(SCORES_FILE, "w")
 	for i=1,3 do
-		rb.splash(100, i)
 		local value = highscores[i]
 		if value == false then
 			value = ""
