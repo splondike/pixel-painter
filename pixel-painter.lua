@@ -48,16 +48,30 @@ function generate_board()
 end
 
 --Flood fills the board from the top left using selected_colour
-function fill_board(x, y, fill_colour)
-	if x > 0 and y > 0 and x <= horizontal_dimension and 
-		y <= vertical_dimension and board[x][y] == fill_colour then
+--Returns the number of boxes filled
+function fill_board(game_board, fill_colour, x, y, original_colour)
+	--defaults
+	x = x or 1
+	y = y or 1
+	fill_colour = fill_colour or selected_colour
+	game_board = game_board or board
+	original_colour = original_colour or game_board[1][1]
 
-		board[x][y] = selected_colour
-		fill_board(x - 1, y, fill_colour)
-		fill_board(x, y - 1, fill_colour)
-		fill_board(x + 1, y, fill_colour)
-		fill_board(x, y + 1, fill_colour)
+	if x > 0 and y > 0 and x <= horizontal_dimension and 
+		y <= vertical_dimension and game_board[x][y] == original_colour then
+
+		local count = 1
+
+		game_board[x][y] = fill_colour
+		count = count + fill_board(game_board, fill_colour, x - 1, y, original_colour)
+		count = count + fill_board(game_board, fill_colour, x, y - 1, original_colour)
+		count = count + fill_board(game_board, fill_colour, x + 1, y, original_colour)
+		count = count + fill_board(game_board, fill_colour, x, y + 1, original_colour)
+
+		return count
 	end
+
+	return 0
 end
 
 function draw_board()
@@ -234,25 +248,13 @@ function app_menu()
 	end
 end
 
---Run on load
+----Run on load
 
 --if not load_game() then
 	--init_game(difficulty)
 --end
 --load_scores()
 --redraw_game()
-
---Joins and flattens the two variables into a single table up to a depth
---of 1
-function table.append(tab, values)
-	if type(values) == "table" then
-		for key,val in pairs(values) do
-			table.insert(tab, val)
-		end
-	elseif type(values) == "number" then
-		table.insert(tab, values)
-	end
-end
 
 function deepcopy(object)
     local lookup_table = {}
@@ -272,37 +274,49 @@ function deepcopy(object)
     return _copy(object)
 end
 
-function get_available_colours(game_board, x, y, original_colour)
-	--defaults
-	original_colour = original_colour or game_board[1][1]
-	x = x or 1
-	y = y or 1
+function count_differences(board1, board2)
+	local count = 0
 
-	if x > 0 and y > 0 and x <= horizontal_dimension and 
-		y <= vertical_dimension then
-
-		if game_board[x][y] == original_colour then
-			game_board[x][y] = 0
-			local t = get_available_colours(game_board, x - 1, y, original_colour) or {}
-			table.append(t,get_available_colours(game_board, x, y - 1, original_colour))
-			table.append(t,get_available_colours(game_board, x + 1, y, original_colour))
-			table.append(t,get_available_colours(game_board, x, y + 1, original_colour))
-
-			return t
-		elseif game_board[x][y] ~= 0 then
-			return {game_board[x][y]}
+	for x=1,horizontal_dimension do
+		for y=1,vertical_dimension do
+			if board1[x][y] ~= board2[x][y] then
+				count = count + 1
+			end
 		end
 	end
+
+	return count
+end
+
+function get_preferred_colour(game_board)
+	local biggest_change = 0
+	local biggest_index = 0
+
+	for i=1,num_colours do
+		if i ~= game_board[1][1] then
+			local board_copy = deepcopy(game_board)
+
+			fill_board(board_copy, i)
+			fill_board(board_copy, 0)
+
+			local num_changed = count_differences(game_board, board_copy)
+			if num_changed > biggest_change then
+				biggest_index = i
+				biggest_change = num_changed
+			end
+		end
+	end
+
+	return biggest_index
 end
 
 init_game(3)
 redraw_game()
 
 repeat
-	available_colours = get_available_colours(deepcopy(board))
-	selected_colour = available_colours[math.random(1, table.getn(available_colours))]
+	selected_colour = get_preferred_colour(board)
 
-	fill_board(1, 1, board[1][1])
+	fill_board()
 	num_moves = num_moves + 1
 	redraw_game()
 until check_win()
@@ -314,7 +328,7 @@ repeat
 
 	if action == rb.actions.ACTION_KBD_SELECT then
 		if selected_colour ~= board[1][1] then
-			fill_board(1, 1, board[1][1])
+			fill_board()
 			num_moves = num_moves + 1
 			redraw_game()
 			if check_win() then
