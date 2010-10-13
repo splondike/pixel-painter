@@ -29,6 +29,7 @@ SAVE_FILE = "/pixel-painter.save"
 function init_game(difficulty)
 	init_variables(difficulty)
 	board = generate_board(horizontal_dimension, vertical_dimension)
+	rb.splash(1, "Calculating par...") --Will stay on screen until it's done
 	par = calculate_par(board)
 end
 
@@ -383,6 +384,7 @@ function app_menu()
 		os.remove(SAVE_FILE)
 		os.exit()		
 	elseif item == 5 then
+		rb.splash(1, "Saving game...") --Will stay on screen till the app exits
 		save_game()
 		os.exit()
 	end
