@@ -368,7 +368,7 @@ function app_menu()
 		init_game(difficulty)
 		redraw_game()
 	elseif item == 2 then
-		local diff = rb.do_menu("Difficulty", {"Easy", "Medium", "Hard"}, nil, false)
+		local diff = rb.do_menu("Difficulty", {"Easy", "Medium", "Hard"}, difficulty - 1, false)
 		if diff < 0 then
 			app_menu()
 		else
