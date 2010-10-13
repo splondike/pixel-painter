@@ -9,6 +9,15 @@ local colours = {
 	rb.lcd_rgbpack(51, 68, 255),
 	rb.lcd_rgbpack(51, 51, 51),
 }
+--The colour of the selection pip
+local pip_colours = {
+	rb.lcd_rgbpack(0, 0, 0),
+	rb.lcd_rgbpack(0, 0, 0),
+	rb.lcd_rgbpack(0, 0, 0),
+	rb.lcd_rgbpack(0, 0, 0),
+	rb.lcd_rgbpack(0, 0, 0),
+	rb.lcd_rgbpack(255, 255, 255),
+}
 local num_colours = table.getn(colours)
 local difficulty = 2 --1:easy, 2:medium, 3:hard
 local highscores = {false, false, false}
@@ -193,7 +202,7 @@ function draw_chooser()
 		rb.lcd_fillrect(chooser_xpos, (i - 1)*(chooser_height), chooser_width, chooser_height)
 	end
 
-	rb.lcd_set_foreground(rb.lcd_rgbpack(0,0,0))
+	rb.lcd_set_foreground(pip_colours[selected_colour])
 	local xpos = chooser_xpos + (chooser_width - chooser_pip_width)/2
 	local ypos = (selected_colour-1)*(chooser_height) + (chooser_height - chooser_pip_width)/2
 	rb.lcd_fillrect(xpos, ypos, chooser_pip_width, chooser_pip_width)
