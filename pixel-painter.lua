@@ -414,7 +414,7 @@ repeat
 			selected_colour = selected_colour - 1
 			redraw_game()
 		end
-	elseif action == 1 then
+	elseif action == 1 then --TODO: Do this properly
 		app_menu()
 	end
 until action == rb.actions.ACTION_KBD_LEFT
