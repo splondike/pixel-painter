@@ -58,62 +58,80 @@ function deepcopy(object)
     return _copy(object)
 end
 
---Returns the number of blocks which have changed colour between the two
---boards, used by calculate_par
-function count_differences(board1, board2)
-	local count = 0
-
-	for x=1,horizontal_dimension do
-		for y=1,vertical_dimension do
-			if board1[x][y] ~= board2[x][y] then
-				count = count + 1
-			end
+--Returns the maximum value of the passed table and its index 
+function table_maximum(a)
+	local mi = 1
+	local m = a[mi]
+	for i, val in ipairs(a) do
+		if val > m then
+			mi = i
+			m = val
 		end
 	end
-
-	return count
-end
-
---Gets the move which fills in the most colour for the passed board,
---used by calculate_par
-function get_preferred_colour(game_board)
-	local biggest_change = 0
-	local biggest_index = 0
-
-	for i=1,num_colours do
-		if i ~= game_board[1][1] then
-			local board_copy = deepcopy(game_board)
-
-			--Fill with zeroes after applying the colour so
-			--count_differences works
-			fill_board(board_copy, i)
-			fill_board(board_copy, 0)
-
-			local num_changed = count_differences(game_board, board_copy)
-			if num_changed > biggest_change then
-				biggest_index = i
-				biggest_change = num_changed
-			end
-		end
-	end
-
-	return biggest_index
+	return m, mi
 end
 
 --Solves the board using a simple algorithm and returns the number of
---moves required
+--moves required. Each turn, the function picks the move which fills in
+--the greatest area of board. The number of moves required to complete
+--it is returned.
 function calculate_par(game_board)
-	local board_copy = deepcopy(game_board)
+	local test_game_copy = deepcopy(game_board)
 	local moves = 0
 
 	repeat
-		local colour = get_preferred_colour(board_copy)
+		local colours_count = get_colours_count(test_game_copy, 1, 1, test_game_copy[1][1])
+		local max_count, colour = table_maximum(colours_count)
 
-		fill_board(board_copy, colour)
-		moves = moves + 1
-	until check_win(board_copy)
+		if max_count > 0 then
+			--Corrects the invalid colour values set by
+			--get_colours_count, this also acts as a move
+			for x=1,horizontal_dimension do
+				for y=1,vertical_dimension do
+					if test_game_copy[x][y] < 0 then
+						test_game_copy[x][y] = test_game_copy[x][y] * -1
+					elseif test_game_copy[x][y] == 0 then
+						test_game_copy[x][y] = colour
+					end
+				end
+			end
 
-	return moves
+			moves = moves + 1
+		else
+			return moves
+		end
+	until false
+end
+
+--Calculates the number of blocks of each colour adjacent to the filled
+--region identified by the passed parameters. A colour indexed table
+--containing the counts is returned.
+--
+--The game_board table is also adjusted as follows: The filled region's
+--colour index is set to zero and each of the adjacent areas' colour
+--indexes are multiplied by -1. These invalid colour values are later
+--corrected in the calculate_par function.
+function get_colours_count(game_board, x, y, original_colour)
+	local count_table = {0, 0, 0, 0, 0, 0}
+
+	if x > 0 and y > 0 and x <= horizontal_dimension and y <= vertical_dimension then
+		if game_board[x][y] == original_colour then
+			game_board[x][y] = 0
+
+			local r1 = get_colours_count(game_board, x - 1, y, original_colour)
+			local r2 = get_colours_count(game_board, x, y - 1, original_colour)
+			local r3 = get_colours_count(game_board, x + 1, y, original_colour)
+			local r4 = get_colours_count(game_board, x, y + 1, original_colour)
+			for i=1,num_colours do
+				count_table[i] = r1[i] + r2[i] + r3[i] + r4[i]
+			end
+		elseif game_board[x][y] > 0 then
+			local c = game_board[x][y]
+			count_table[c] = fill_board(game_board, -1 * c, x, y, c)
+		end
+	end
+
+	return count_table
 end
 
 --Returns a randomly coloured board of the indicated dimensions
