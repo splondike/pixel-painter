@@ -118,6 +118,8 @@ end
 --Populates the global board variable with random colours, and
 --calculates its 'par' value
 function generate_board()
+	math.randomseed(rb.current_tick()+os.time())
+
 	board = {}
 	for x=1,horizontal_dimension do
 		board[x] = {}
@@ -304,16 +306,28 @@ function diff_to_dimension(difficulty)
 	end
 end
 
+--TODO: Do this
 --Draws help to screen, waits for a keypress to exit
 function app_help()
-	redraw_game()
-	--rb.lcd_clear_display()
-	--rb.lcd_update()
-	--local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
+	rb.lcd_clear_display()
+
+	local title = "Pixel painter help"
+	local title_width = rb.font_getstringsize(title, 0, 0, rb.FONT_SYSFIXED)
+	local title_xpos = (rb.LCD_WIDTH - title_width) / 2
+
+	rb.lcd_putsxy(title_xpos, 0, title)
+	rb.lcd_hline(title_xpos, title_xpos + title_width, 13)
+
+	local body_text = [[
+		The aim is to fill the screen with a single colour. A new colour is filled from the top left corner.
+
+		The bottom right displays the number of moves taken, the score attained by the computer and your best score relative to the computer's.
+	]]
+
+	rb.lcd_update()
+	local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
 end
 
---TODO: Some way of exiting difficulty menu back to main one, don't kill
---the save file then
 --Draws the application menu and handles its logic
 function app_menu()
 	local options = {"Resume game", "Start new game", "Change difficulty", 
@@ -328,11 +342,14 @@ function app_menu()
 		redraw_game()
 	elseif item == 2 then
 		local diff = rb.do_menu("Difficulty", {"Easy", "Medium", "Hard"}, nil, false)
-		difficulty = diff + 1 --lua is 1 indexed
-		os.remove(SAVE_FILE)
-		init_game(difficulty)
-		load_scores()
-		redraw_game()
+		if diff < 0 then
+			app_menu()
+		else
+			difficulty = diff + 1 --lua is 1 indexed
+			os.remove(SAVE_FILE)
+			init_game(difficulty)
+			redraw_game()
+		end
 	elseif item == 3 then
 		app_help()
 	elseif item == 4 then
