@@ -19,7 +19,8 @@ SAVE_FILE = "/pixel-painter.save"
 --Convenience function
 function init_game(difficulty)
 	init_variables(difficulty)
-	generate_board()
+	board = generate_board(horizontal_dimension, vertical_dimension)
+	par = calculate_par(board)
 end
 
 --Initialises the game variables at the given difficulty
@@ -115,12 +116,11 @@ function calculate_par(game_board)
 	return moves
 end
 
---Populates the global board variable with random colours, and
---calculates its 'par' value
-function generate_board()
+--Returns a randomly coloured board of the indicated dimensions
+function generate_board(horizontal_dimension, vertical_dimension)
 	math.randomseed(rb.current_tick()+os.time())
 
-	board = {}
+	local board = {}
 	for x=1,horizontal_dimension do
 		board[x] = {}
 		for y=1,vertical_dimension do
@@ -128,7 +128,7 @@ function generate_board()
 		end
 	end
 
-	par = calculate_par(board)
+	return board
 end
 
 --Flood fills the board from the top left using selected_colour
