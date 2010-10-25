@@ -172,15 +172,11 @@ function fill_board(game_board, fill_colour, x, y, original_colour)
 	if x > 0 and y > 0 and x <= horizontal_dimension and 
 		y <= vertical_dimension and game_board[x][y] == original_colour then
 
-		local count = 1
-
 		game_board[x][y] = fill_colour
-		count = count + fill_board(game_board, fill_colour, x - 1, y, original_colour)
-		count = count + fill_board(game_board, fill_colour, x, y - 1, original_colour)
-		count = count + fill_board(game_board, fill_colour, x + 1, y, original_colour)
-		count = count + fill_board(game_board, fill_colour, x, y + 1, original_colour)
-
-		return count
+		return fill_board(game_board, fill_colour, x - 1, y, original_colour) + 
+		       fill_board(game_board, fill_colour, x, y - 1, original_colour) +
+		       fill_board(game_board, fill_colour, x + 1, y, original_colour) +
+		       fill_board(game_board, fill_colour, x, y + 1, original_colour) + 1
 	end
 
 	return 0
@@ -210,7 +206,7 @@ function draw_chooser()
 end
 
 --TODO: Set the positions appropriately
---Draw the current moves, par and high score
+--Draws the current moves, par and high score
 function draw_moves()
 	rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
 	rb.lcd_putsxy(chooser_xpos, 140, "Mov: "..num_moves)
@@ -340,7 +336,7 @@ function app_help()
 	rb.lcd_clear_display()
 
 	local title = "Pixel painter help"
-	local title_width = rb.font_getstringsize(title, 0, 0, rb.FONT_SYSFIXED)
+	local title_width = rb.font_getstringsize(title, 0, 0, 3)
 	local title_xpos = (rb.LCD_WIDTH - title_width) / 2
 
 	rb.lcd_putsxy(title_xpos, 0, title)
@@ -394,7 +390,7 @@ end
 --score to the calculated par value
 function win_text(delta)
 	if delta < 0 then
-		return "You were "..(delta*-1).." under par"
+		return "You were "..(-1*delta).." under par"
 	elseif delta > 0 then
 		return "You were "..delta.." over par"
 	else
