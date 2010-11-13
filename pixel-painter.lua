@@ -110,6 +110,7 @@ function calculate_par(game_board)
 		else
 			return moves
 		end
+		rb.yield()
 	until false
 end
 

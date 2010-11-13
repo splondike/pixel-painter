@@ -1,3 +1,1 @@
-* Calculating par and/or generating the map cause music playback to
-stop. Add some yield()s?
 * Test on other emulators, greyscale for example.
