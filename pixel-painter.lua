@@ -331,23 +331,51 @@ function diff_to_dimension(difficulty)
 	end
 end
 
---TODO: Do this
 --Draws help to screen, waits for a keypress to exit
 function app_help()
 	rb.lcd_clear_display()
 
 	local title = "Pixel painter help"
-	local title_width = rb.font_getstringsize(title, 0, 0, 3)
+	local rtn, title_width, line_height = rb.font_getstringsize(title, 1)
 	local title_xpos = (rb.LCD_WIDTH - title_width) / 2
+	local space_width = rb.font_getstringsize(" ", 1)
 
+	--Draw title
 	rb.lcd_putsxy(title_xpos, 0, title)
-	rb.lcd_hline(title_xpos, title_xpos + title_width, 13)
+	rb.lcd_hline(title_xpos, title_xpos + title_width, line_height)
 
 	local body_text = [[
-		The aim is to fill the screen with a single colour. A new colour is filled from the top left corner.
+The aim is to fill the screen with a single colour. Each move you select a new colour which is then filled in from the top left corner.
 
-		The bottom right displays the number of moves taken, the score attained by the computer and your best score relative to the computer's.
-	]]
+The bottom right displays the number of moves taken, the number of moves used by the computer and your best score relative to the computer's.
+]]
+	local body_len = string.len(body_text)
+
+	--Draw body text
+	local word_buffer = ""
+	local xpos = 0
+	local ypos = line_height * 2 
+	for i=1,body_len do
+		local c = string.sub(body_text, i, i)
+		if c == " " or c == "\n" then
+			local word_length = rb.font_getstringsize(word_buffer, 1)
+			if (xpos + word_length) > rb.LCD_WIDTH then
+				xpos = 0
+				ypos = ypos + line_height
+			end
+			rb.lcd_putsxy(xpos, ypos, word_buffer)
+
+			word_buffer = ""
+			if c == "\n" then
+				xpos = 0
+				ypos = ypos + line_height
+			else
+				xpos = xpos + word_length + space_width
+			end
+		else
+			word_buffer = word_buffer .. c
+		end
+	end
 
 	rb.lcd_update()
 	local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
@@ -377,6 +405,7 @@ function app_menu()
 		end
 	elseif item == 3 then
 		app_help()
+		redraw_game()
 	elseif item == 4 then
 		os.remove(SAVE_FILE)
 		os.exit()		
@@ -440,7 +469,9 @@ repeat
 			selected_colour = selected_colour - 1
 			redraw_game()
 		end
-	elseif action == 1 then --TODO: Do this properly
+	elseif action == 1 then 
+		--TODO: Should I do a button_get(false) thing here to check for
+		--the menu button?
 		app_menu()
 	end
 until action == rb.actions.ACTION_KBD_LEFT
