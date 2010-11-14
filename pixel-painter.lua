@@ -206,14 +206,36 @@ function draw_chooser()
 	rb.lcd_fillrect(xpos, ypos, chooser_pip_width, chooser_pip_width)
 end
 
---TODO: Set the positions appropriately
 --Draws the current moves, par and high score
 function draw_moves()
+	local r,w,line_height = rb.font_getstringsize(" ", 1)
+	local start_height = num_colours*chooser_height
+
+	local function calc_string(var_len_str, static_str)
+		local avail_width = chooser_width - rb.font_getstringsize(static_str, 1)
+		local rtn_str = ""
+
+		for i=1,string.len(var_len_str) do
+			local c = string.sub(var_len_str, i, i)
+			local curr_width = rb.font_getstringsize(rtn_str, 1)
+			local width = rb.font_getstringsize(c, 1)
+
+			if curr_width + width <= avail_width then
+				rtn_str = rtn_str .. c
+			else
+				break
+			end
+		end
+		
+		return rtn_str .. static_str
+	end
+
 	rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
-	rb.lcd_putsxy(chooser_xpos, 140, "Mov: "..num_moves)
-	rb.lcd_putsxy(chooser_xpos, 152, "Par: "..par)
+	rb.lcd_putsxy(chooser_xpos, start_height, calc_string("Move", ":"..num_moves))
+	rb.lcd_putsxy(chooser_xpos, start_height + line_height, calc_string("Par", ":"..par))
 	if highscores[difficulty] then
-		rb.lcd_putsxy(chooser_xpos, 164, "Best: "..highscores[difficulty])
+		rb.lcd_putsxy(chooser_xpos, start_height + line_height*2, 
+			calc_string("Best", ":"..highscores[difficulty]))
 	end
 end
 
