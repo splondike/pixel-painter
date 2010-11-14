@@ -29,6 +29,7 @@ local highscores = {false, false, false}
 
 SCORES_FILE = "/pixel-painter.score"
 SAVE_FILE = "/pixel-painter.save"
+r,w,TEXT_LINE_HEIGHT = rb.font_getstringsize(" ", 1)
 
 --Convenience function
 function init_game(difficulty)
@@ -46,7 +47,7 @@ function init_variables(difficulty)
 
 	chooser_xpos = (horizontal_dimension)*block_width + 2 --xpos of the colour chooser
 	chooser_width = rb.LCD_WIDTH - chooser_xpos
-	chooser_height = rb.LCD_HEIGHT / num_colours - 6
+	chooser_height = (rb.LCD_HEIGHT - 3*TEXT_LINE_HEIGHT) / num_colours
 	chooser_pip_width = 6 --pixel dimension of the selected colour pip
 
 	--Game variables
@@ -213,7 +214,6 @@ end
 
 --Draws the current moves, par and high score
 function draw_moves()
-	local r,w,line_height = rb.font_getstringsize(" ", 1)
 	local start_height = num_colours*chooser_height
 
 	local function calc_string(var_len_str, static_str)
@@ -237,9 +237,9 @@ function draw_moves()
 
 	rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
 	rb.lcd_putsxy(chooser_xpos, start_height, calc_string("Move", ":"..num_moves))
-	rb.lcd_putsxy(chooser_xpos, start_height + line_height, calc_string("Par", ":"..par))
+	rb.lcd_putsxy(chooser_xpos, start_height + TEXT_LINE_HEIGHT, calc_string("Par", ":"..par))
 	if highscores[difficulty] then
-		rb.lcd_putsxy(chooser_xpos, start_height + line_height*2, 
+		rb.lcd_putsxy(chooser_xpos, start_height + TEXT_LINE_HEIGHT*2, 
 			calc_string("Best", ":"..highscores[difficulty]))
 	end
 end
@@ -363,13 +363,13 @@ function app_help()
 	rb.lcd_clear_display()
 
 	local title = "Pixel painter help"
-	local rtn, title_width, line_height = rb.font_getstringsize(title, 1)
+	local rtn, title_width, h = rb.font_getstringsize(title, 1)
 	local title_xpos = (rb.LCD_WIDTH - title_width) / 2
 	local space_width = rb.font_getstringsize(" ", 1)
 
 	--Draw title
 	rb.lcd_putsxy(title_xpos, 0, title)
-	rb.lcd_hline(title_xpos, title_xpos + title_width, line_height)
+	rb.lcd_hline(title_xpos, title_xpos + title_width, TEXT_LINE_HEIGHT)
 
 	local body_text = [[
 The aim is to fill the screen with a single colour. Each move you select a new colour which is then filled in from the top left corner.
@@ -381,21 +381,21 @@ The bottom right displays the number of moves taken, the number of moves used by
 	--Draw body text
 	local word_buffer = ""
 	local xpos = 0
-	local ypos = line_height * 2 
+	local ypos = TEXT_LINE_HEIGHT * 2 
 	for i=1,body_len do
 		local c = string.sub(body_text, i, i)
 		if c == " " or c == "\n" then
 			local word_length = rb.font_getstringsize(word_buffer, 1)
 			if (xpos + word_length) > rb.LCD_WIDTH then
 				xpos = 0
-				ypos = ypos + line_height
+				ypos = ypos + TEXT_LINE_HEIGHT
 			end
 			rb.lcd_putsxy(xpos, ypos, word_buffer)
 
 			word_buffer = ""
 			if c == "\n" then
 				xpos = 0
-				ypos = ypos + line_height
+				ypos = ypos + TEXT_LINE_HEIGHT
 			else
 				xpos = xpos + word_length + space_width
 			end
