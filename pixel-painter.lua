@@ -1,5 +1,10 @@
 require("actions")
 
+if rb.lcd_rgbpack == nil then
+	rb.splash(2*rb.HZ, "Non RGB targets not currently supported")
+	os.exit()
+end
+
 --The colours used by the game
 local colours = {
 	rb.lcd_rgbpack(255, 119, 34),
