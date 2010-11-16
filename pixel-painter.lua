@@ -260,7 +260,12 @@ end
 
 --Draws the current moves, par and high score
 function draw_status()
-	rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
+	local strings = {"Move", num_moves, "Par", par}
+	if highscores[difficulty] then
+		table.insert(strings, "Best")
+		table.insert(strings, highscores[difficulty])
+	end
+
 	if LAYOUT == 1 then
 		local function calc_string(var_len_str, static_str)
 			local avail_width = chooser_width - rb.font_getstringsize(static_str, 1)
@@ -278,15 +283,19 @@ function draw_status()
 				end
 			end
 			
-			return rtn_str .. static_str
+			return rtn_str, rb.font_getstringsize(rtn_str, 1)
 		end
 
-		local start_height = NUM_COLOURS*chooser_height
-		rb.lcd_putsxy(chooser_start_pos, start_height, calc_string("Move", ":"..num_moves))
-		rb.lcd_putsxy(chooser_start_pos, start_height + TEXT_LINE_HEIGHT, calc_string("Par", ":"..par))
-		if highscores[difficulty] then
-			rb.lcd_putsxy(chooser_start_pos, start_height + TEXT_LINE_HEIGHT*2, 
-				calc_string("Best", ":"..highscores[difficulty]))
+		local height = NUM_COLOURS*chooser_height
+		colon_width = rb.font_getstringsize(": ", 1)
+		for i = 1,table.getn(strings),2 do
+			local label, label_width = calc_string(strings[i], ": "..strings[i+1])
+
+			rb.lcd_set_foreground(rb.lcd_rgbpack(255,0,0))
+			rb.lcd_putsxy(chooser_start_pos, height, label..": ")
+			rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
+			rb.lcd_putsxy(chooser_start_pos + label_width + colon_width, height, strings[i+1])
+			height = height + TEXT_LINE_HEIGHT
 		end
 	else
 		local text_ypos = 0
@@ -296,12 +305,16 @@ function draw_status()
 			text_ypos = rb.LCD_HEIGHT - TEXT_LINE_HEIGHT
 		end
 
-		local best_str = ""
-		if highscores[difficulty] then
-			best_str = " Best: "..highscores[difficulty]
+		space_width = rb.font_getstringsize(" ", 1)
+		local xpos = 0
+		for i = 1,table.getn(strings),2 do
+			rb.lcd_set_foreground(rb.lcd_rgbpack(255,0,0))
+			rb.lcd_putsxy(xpos, text_ypos, strings[i]..": ")
+			xpos = xpos + rb.font_getstringsize(strings[i]..": ", 1)
+			rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
+			rb.lcd_putsxy(xpos, text_ypos, strings[i+1])
+			xpos = xpos + rb.font_getstringsize(strings[i+1], 1) + space_width
 		end
-		rb.lcd_putsxy(0, text_ypos, 
-			"Move: "..num_moves.." Par: "..par..best_str)
 	end
 end
 
@@ -560,6 +573,6 @@ repeat
 	elseif action == 1 then 
 		--TODO: Should I do a button_get(false) thing here to check for
 		--the menu button?
-		app_menu()
+		--app_menu()
 	end
 until action == rb.actions.ACTION_KBD_LEFT
