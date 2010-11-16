@@ -73,6 +73,15 @@ function init_variables(difficulty)
 		chooser_start_pos = board_dimension*block_width + 2 + TEXT_LINE_HEIGHT
 		chooser_width = rb.LCD_WIDTH / NUM_COLOURS
 		chooser_height = rb.LCD_HEIGHT - chooser_start_pos
+	else
+		if TEXT_LINE_HEIGHT > 9 then
+			block_width = (rb.LCD_HEIGHT - TEXT_LINE_HEIGHT) / board_dimension
+		else
+			block_width = (rb.LCD_HEIGHT - 9) / board_dimension
+		end
+		chooser_start_pos = (board_dimension)*block_width + 1
+		chooser_width = rb.LCD_WIDTH - chooser_start_pos
+		chooser_height = (rb.LCD_HEIGHT - TEXT_LINE_HEIGHT) / NUM_COLOURS
 	end
 
 	--Game variables
@@ -229,7 +238,7 @@ end
 function draw_chooser()
 	for i=1,NUM_COLOURS do
 		rb.lcd_set_foreground(COLOURS[i])
-		if LAYOUT == 1 then
+		if LAYOUT == 1 or LAYOUT == 3 then
 			rb.lcd_fillrect(chooser_start_pos, (i - 1)*(chooser_height), chooser_width, chooser_height)
 		elseif LAYOUT == 2 then
 			rb.lcd_fillrect((i - 1)*(chooser_width), chooser_start_pos, chooser_width, chooser_height)
@@ -239,7 +248,7 @@ function draw_chooser()
 	rb.lcd_set_foreground(PIP_COLOURS[selected_colour])
 	local xpos = 0
 	local ypos = 0
-	if LAYOUT == 1 then
+	if LAYOUT == 1 or LAYOUT == 3 then
 		xpos = chooser_start_pos + (chooser_width - chooser_pip_dimension)/2
 		ypos = (selected_colour-1)*(chooser_height) + (chooser_height - chooser_pip_dimension)/2
 	elseif LAYOUT == 2 then
@@ -279,12 +288,19 @@ function draw_status()
 			rb.lcd_putsxy(chooser_start_pos, start_height + TEXT_LINE_HEIGHT*2, 
 				calc_string("Best", ":"..highscores[difficulty]))
 		end
-	elseif LAYOUT == 2 then
+	else
+		local text_ypos = 0
+		if LAYOUT == 2 then
+			text_ypos = chooser_start_pos - TEXT_LINE_HEIGHT - 1
+		else
+			text_ypos = rb.LCD_HEIGHT - TEXT_LINE_HEIGHT
+		end
+
 		local best_str = ""
 		if highscores[difficulty] then
 			best_str = " Best: "..highscores[difficulty]
 		end
-		rb.lcd_putsxy(0, chooser_start_pos - TEXT_LINE_HEIGHT - 1, 
+		rb.lcd_putsxy(0, text_ypos, 
 			"Move: "..num_moves.." Par: "..par..best_str)
 	end
 end
@@ -544,6 +560,6 @@ repeat
 	elseif action == 1 then 
 		--TODO: Should I do a button_get(false) thing here to check for
 		--the menu button?
-		--app_menu()
+		app_menu()
 	end
 until action == rb.actions.ACTION_KBD_LEFT
