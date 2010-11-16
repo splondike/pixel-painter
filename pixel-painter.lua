@@ -6,7 +6,7 @@ if rb.lcd_rgbpack == nil then
 end
 
 --The colours used by the game
-local colours = {
+local COLOURS = {
 	rb.lcd_rgbpack(255, 119, 34),
 	rb.lcd_rgbpack(255, 255, 102),
 	rb.lcd_rgbpack(119, 204, 51),
@@ -15,7 +15,7 @@ local colours = {
 	rb.lcd_rgbpack(51, 51, 51),
 }
 --The colour of the selection pip
-local pip_colours = {
+local PIP_COLOURS = {
 	rb.lcd_rgbpack(0, 0, 0),
 	rb.lcd_rgbpack(0, 0, 0),
 	rb.lcd_rgbpack(0, 0, 0),
@@ -23,35 +23,60 @@ local pip_colours = {
 	rb.lcd_rgbpack(0, 0, 0),
 	rb.lcd_rgbpack(255, 255, 255),
 }
-local num_colours = table.getn(colours)
-local difficulty = 2 --1:easy, 2:medium, 3:hard
-local highscores = {false, false, false}
-
+local NUM_COLOURS = table.getn(COLOURS)
 SCORES_FILE = "/pixel-painter.score"
 SAVE_FILE = "/pixel-painter.save"
-r,w,TEXT_LINE_HEIGHT = rb.font_getstringsize(" ", 1)
+r,w,TEXT_LINE_HEIGHT = rb.font_getstringsize(" ", 1) --Get font height
+--Determine which layout to use by considering the screen dimensions
+--the +9 is so we have space for the chooser
+if rb.LCD_WIDTH > (rb.LCD_HEIGHT + 9) then
+	LAYOUT = 1 --Wider than high, status and chooser on right
+elseif rb.LCD_HEIGHT > (rb.LCD_WIDTH + 9) then
+	LAYOUT = 2 --Higher than wide, status and chooser below
+else
+	LAYOUT = 3 --Treat like a square screen, chooser on right, status below
+end
+
+--Game variables (most are initialized in init_variables)
+local highscores = {false, false, false}
+
+local difficulty = 2 --1:easy, 2:medium, 3:hard
+local board_dimension = 0 --Number of rows and columns
+local chooser_pip_dimension = 6 --pixel dimension of the selected colour pip
+local block_width = 0 --pixel dimension of each game square
+local chooser_start_pos = 0 --x or y position of the first block (depending on LAYOUT)
+
+local board = {}
+local num_moves = 0
+local selected_colour = 1 --index of the current colour
 
 --Convenience function
 function init_game(difficulty)
 	init_variables(difficulty)
-	board = generate_board(horizontal_dimension, vertical_dimension)
+	board = generate_board(board_dimension)
 	rb.splash(1, "Calculating par...") --Will stay on screen until it's done
 	par = calculate_par(board)
 end
 
---Initialises the game variables at the given difficulty
+--Initialises the game variables at the given difficulty, and the UI
+--variables for the screen LAYOUT
 function init_variables(difficulty)
-	vertical_dimension = diff_to_dimension(difficulty)
-	horizontal_dimension = vertical_dimension
-	block_width = rb.LCD_HEIGHT / vertical_dimension --pixel dimension of each game square
+	board_dimension = diff_to_dimension(difficulty)
 
-	chooser_xpos = (horizontal_dimension)*block_width + 2 --xpos of the colour chooser
-	chooser_width = rb.LCD_WIDTH - chooser_xpos
-	chooser_height = (rb.LCD_HEIGHT - 3*TEXT_LINE_HEIGHT) / num_colours
-	chooser_pip_width = 6 --pixel dimension of the selected colour pip
+	if LAYOUT == 1 then
+		block_width = rb.LCD_HEIGHT / board_dimension 
+		chooser_start_pos = (board_dimension)*block_width + 2
+		chooser_width = rb.LCD_WIDTH - chooser_start_pos
+		chooser_height = (rb.LCD_HEIGHT - 3*TEXT_LINE_HEIGHT) / NUM_COLOURS
+	elseif LAYOUT == 2 then
+		block_width = rb.LCD_WIDTH / board_dimension 
+		chooser_start_pos = board_dimension*block_width + 2 + TEXT_LINE_HEIGHT
+		chooser_width = rb.LCD_WIDTH / NUM_COLOURS
+		chooser_height = rb.LCD_HEIGHT - chooser_start_pos
+	end
 
 	--Game variables
-	selected_colour = 1 --index of the current colour
+	selected_colour = 1 
 	num_moves = 0
 end
 
@@ -102,8 +127,8 @@ function calculate_par(game_board)
 		if max_count > 0 then
 			--Corrects the invalid colour values set by
 			--get_colours_count, this also acts as a move
-			for x=1,horizontal_dimension do
-				for y=1,vertical_dimension do
+			for x=1,board_dimension do
+				for y=1,board_dimension do
 					if test_game_copy[x][y] < 0 then
 						test_game_copy[x][y] = test_game_copy[x][y] * -1
 					elseif test_game_copy[x][y] == 0 then
@@ -131,7 +156,7 @@ end
 function get_colours_count(game_board, x, y, original_colour)
 	local count_table = {0, 0, 0, 0, 0, 0}
 
-	if x > 0 and y > 0 and x <= horizontal_dimension and y <= vertical_dimension then
+	if x > 0 and y > 0 and x <= board_dimension and y <= board_dimension then
 		if game_board[x][y] == original_colour then
 			game_board[x][y] = 0
 
@@ -139,7 +164,7 @@ function get_colours_count(game_board, x, y, original_colour)
 			local r2 = get_colours_count(game_board, x, y - 1, original_colour)
 			local r3 = get_colours_count(game_board, x + 1, y, original_colour)
 			local r4 = get_colours_count(game_board, x, y + 1, original_colour)
-			for i=1,num_colours do
+			for i=1,NUM_COLOURS do
 				count_table[i] = r1[i] + r2[i] + r3[i] + r4[i]
 			end
 		elseif game_board[x][y] > 0 then
@@ -152,14 +177,14 @@ function get_colours_count(game_board, x, y, original_colour)
 end
 
 --Returns a randomly coloured board of the indicated dimensions
-function generate_board(horizontal_dimension, vertical_dimension)
+function generate_board(board_dimension)
 	math.randomseed(rb.current_tick()+os.time())
 
 	local board = {}
-	for x=1,horizontal_dimension do
+	for x=1,board_dimension do
 		board[x] = {}
-		for y=1,vertical_dimension do
-			board[x][y] = math.random(1,num_colours)
+		for y=1,board_dimension do
+			board[x][y] = math.random(1,NUM_COLOURS)
 		end
 	end
 
@@ -176,8 +201,8 @@ function fill_board(game_board, fill_colour, x, y, original_colour)
 	game_board = game_board or board
 	original_colour = original_colour or game_board[1][1]
 
-	if x > 0 and y > 0 and x <= horizontal_dimension and 
-		y <= vertical_dimension and game_board[x][y] == original_colour then
+	if x > 0 and y > 0 and x <= board_dimension and 
+		y <= board_dimension and game_board[x][y] == original_colour then
 
 		game_board[x][y] = fill_colour
 		return fill_board(game_board, fill_colour, x - 1, y, original_colour) + 
@@ -191,56 +216,76 @@ end
 
 --Draws the game board to screen
 function draw_board()
-	for x=1,horizontal_dimension do
-		for y=1,vertical_dimension do
-			rb.lcd_set_foreground(colours[board[x][y]])
+	for x=1,board_dimension do
+		for y=1,board_dimension do
+			rb.lcd_set_foreground(COLOURS[board[x][y]])
 			rb.lcd_fillrect((x-1)*block_width, (y-1)*block_width, block_width, block_width)
 		end
 	end
 end
 
---Draw the colour chooser on the side, along with selected pip
+--Draw the colour chooser along with selected pip at the appropriate
+--position
 function draw_chooser()
-	for i=1,num_colours do
-		rb.lcd_set_foreground(colours[i])
-		rb.lcd_fillrect(chooser_xpos, (i - 1)*(chooser_height), chooser_width, chooser_height)
+	for i=1,NUM_COLOURS do
+		rb.lcd_set_foreground(COLOURS[i])
+		if LAYOUT == 1 then
+			rb.lcd_fillrect(chooser_start_pos, (i - 1)*(chooser_height), chooser_width, chooser_height)
+		elseif LAYOUT == 2 then
+			rb.lcd_fillrect((i - 1)*(chooser_width), chooser_start_pos, chooser_width, chooser_height)
+		end
 	end
 
-	rb.lcd_set_foreground(pip_colours[selected_colour])
-	local xpos = chooser_xpos + (chooser_width - chooser_pip_width)/2
-	local ypos = (selected_colour-1)*(chooser_height) + (chooser_height - chooser_pip_width)/2
-	rb.lcd_fillrect(xpos, ypos, chooser_pip_width, chooser_pip_width)
+	rb.lcd_set_foreground(PIP_COLOURS[selected_colour])
+	local xpos = 0
+	local ypos = 0
+	if LAYOUT == 1 then
+		xpos = chooser_start_pos + (chooser_width - chooser_pip_dimension)/2
+		ypos = (selected_colour-1)*(chooser_height) + (chooser_height - chooser_pip_dimension)/2
+	elseif LAYOUT == 2 then
+		xpos = (selected_colour-1)*(chooser_width) + (chooser_width - chooser_pip_dimension)/2
+		ypos = chooser_start_pos + (chooser_height - chooser_pip_dimension)/2
+	end
+	rb.lcd_fillrect(xpos, ypos, chooser_pip_dimension, chooser_pip_dimension)
 end
 
 --Draws the current moves, par and high score
-function draw_moves()
-	local start_height = num_colours*chooser_height
-
-	local function calc_string(var_len_str, static_str)
-		local avail_width = chooser_width - rb.font_getstringsize(static_str, 1)
-		local rtn_str = ""
-
-		for i=1,string.len(var_len_str) do
-			local c = string.sub(var_len_str, i, i)
-			local curr_width = rb.font_getstringsize(rtn_str, 1)
-			local width = rb.font_getstringsize(c, 1)
-
-			if curr_width + width <= avail_width then
-				rtn_str = rtn_str .. c
-			else
-				break
-			end
-		end
-		
-		return rtn_str .. static_str
-	end
-
+function draw_status()
 	rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
-	rb.lcd_putsxy(chooser_xpos, start_height, calc_string("Move", ":"..num_moves))
-	rb.lcd_putsxy(chooser_xpos, start_height + TEXT_LINE_HEIGHT, calc_string("Par", ":"..par))
-	if highscores[difficulty] then
-		rb.lcd_putsxy(chooser_xpos, start_height + TEXT_LINE_HEIGHT*2, 
-			calc_string("Best", ":"..highscores[difficulty]))
+	if LAYOUT == 1 then
+		local function calc_string(var_len_str, static_str)
+			local avail_width = chooser_width - rb.font_getstringsize(static_str, 1)
+			local rtn_str = ""
+
+			for i=1,string.len(var_len_str) do
+				local c = string.sub(var_len_str, i, i)
+				local curr_width = rb.font_getstringsize(rtn_str, 1)
+				local width = rb.font_getstringsize(c, 1)
+
+				if curr_width + width <= avail_width then
+					rtn_str = rtn_str .. c
+				else
+					break
+				end
+			end
+			
+			return rtn_str .. static_str
+		end
+
+		local start_height = NUM_COLOURS*chooser_height
+		rb.lcd_putsxy(chooser_start_pos, start_height, calc_string("Move", ":"..num_moves))
+		rb.lcd_putsxy(chooser_start_pos, start_height + TEXT_LINE_HEIGHT, calc_string("Par", ":"..par))
+		if highscores[difficulty] then
+			rb.lcd_putsxy(chooser_start_pos, start_height + TEXT_LINE_HEIGHT*2, 
+				calc_string("Best", ":"..highscores[difficulty]))
+		end
+	elseif LAYOUT == 2 then
+		local best_str = ""
+		if highscores[difficulty] then
+			best_str = " Best: "..highscores[difficulty]
+		end
+		rb.lcd_putsxy(0, chooser_start_pos - TEXT_LINE_HEIGHT - 1, 
+			"Move: "..num_moves.." Par: "..par..best_str)
 	end
 end
 
@@ -249,14 +294,14 @@ function redraw_game()
 	rb.lcd_clear_display()
 	draw_board()
 	draw_chooser()
-	draw_moves()
+	draw_status()
 	rb.lcd_update()
 end
 
 --Checks whether the given board is a single colour
 function check_win(game_board)
-	for x=1,horizontal_dimension do
-		for y=1,vertical_dimension do
+	for x=1,board_dimension do
+		for y=1,board_dimension do
 			if game_board[x][y] ~= game_board[1][1] then
 				return false
 			end
@@ -304,8 +349,8 @@ function save_game()
 	f:write(par,"\n")
 	f:write(num_moves,"\n")
 	f:write(selected_colour,"\n")
-	for x=1,horizontal_dimension do
-		for y=1,vertical_dimension do
+	for x=1,board_dimension do
+		for y=1,board_dimension do
 			f:write(board[x][y]," ")
 		end
 		f:write("\n")
@@ -487,7 +532,7 @@ repeat
 			end
 		end
 	elseif action == rb.actions.ACTION_KBD_DOWN then
-		if selected_colour < num_colours then
+		if selected_colour < NUM_COLOURS then
 			selected_colour = selected_colour + 1
 			redraw_game()
 		end
@@ -499,6 +544,6 @@ repeat
 	elseif action == 1 then 
 		--TODO: Should I do a button_get(false) thing here to check for
 		--the menu button?
-		app_menu()
+		--app_menu()
 	end
 until action == rb.actions.ACTION_KBD_LEFT
