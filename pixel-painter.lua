@@ -539,6 +539,17 @@ end
 load_scores()
 redraw_game()
 
+--Set the keys to use for scrolling the chooser
+if LAYOUT == 2 then
+	prev_action = rb.actions.ACTION_KBD_LEFT
+	next_action = rb.actions.ACTION_KBD_RIGHT
+	kill_action = rb.actions.ACTION_KBD_UP
+else
+	prev_action = rb.actions.ACTION_KBD_UP
+	next_action = rb.actions.ACTION_KBD_DOWN
+	kill_action = rb.actions.ACTION_KBD_LEFT
+end
+
 repeat
 	local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
 
@@ -560,19 +571,17 @@ repeat
 				os.exit()
 			end
 		end
-	elseif action == rb.actions.ACTION_KBD_DOWN then
+	elseif action == next_action then
 		if selected_colour < NUM_COLOURS then
 			selected_colour = selected_colour + 1
 			redraw_game()
 		end
-	elseif action == rb.actions.ACTION_KBD_UP then
+	elseif action == prev_action then
 		if selected_colour > 1 then
 			selected_colour = selected_colour - 1
 			redraw_game()
 		end
-	elseif action == 1 then 
-		--TODO: Should I do a button_get(false) thing here to check for
-		--the menu button?
-		--app_menu()
+	elseif action == rb.actions.ACTION_KBD_ABORT then 
+		app_menu()
 	end
-until action == rb.actions.ACTION_KBD_LEFT
+until action == kill_action
