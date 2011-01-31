@@ -150,7 +150,7 @@ function calculate_par(game_board)
 		else
 			return moves
 		end
-		rb.yield()
+		collectgarbage("collect")
 	until false
 end
 
