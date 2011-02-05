@@ -147,16 +147,6 @@ function check_win(game_board)
 	return true
 end
 
-function diff_to_dimension(difficulty)
-	if difficulty == 1 then
-		return 8
-	elseif difficulty == 2 then
-		return 16
-	else
-		return 22
-	end
-end
-
 --Attempt to load the save file into the game variables
 --Returns true on success, false otherwise
 function load_game(filename)
@@ -189,7 +179,7 @@ function load_game(filename)
 end
 
 --Saves the game state to file
-function save_game(filename)
+function save_game(board, filename)
 	local f = io.open(filename, "w")
 	f:write(difficulty,"\n")
 	f:write(par,"\n")
@@ -339,6 +329,16 @@ if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
 		--Game variables
 		selected_colour = 1 
 		num_moves = 0
+	end
+
+	function diff_to_dimension(difficulty)
+		if difficulty == 1 then
+			return 8
+		elseif difficulty == 2 then
+			return 16
+		else
+			return 22
+		end
 	end
 
 	--Draws the game board to screen
