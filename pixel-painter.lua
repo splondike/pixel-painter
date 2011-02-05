@@ -1,94 +1,3 @@
-require("actions")
-
-if rb.lcd_rgbpack == nil then
-	rb.splash(2*rb.HZ, "Non RGB targets not currently supported")
-	os.exit()
-end
-
---The colours used by the game
-local COLOURS = {
-	rb.lcd_rgbpack(255, 119, 34),
-	rb.lcd_rgbpack(255, 255, 102),
-	rb.lcd_rgbpack(119, 204, 51),
-	rb.lcd_rgbpack(102, 170, 255),
-	rb.lcd_rgbpack(51, 68, 255),
-	rb.lcd_rgbpack(51, 51, 51),
-}
---The colour of the selection pip
-local PIP_COLOURS = {
-	rb.lcd_rgbpack(0, 0, 0),
-	rb.lcd_rgbpack(0, 0, 0),
-	rb.lcd_rgbpack(0, 0, 0),
-	rb.lcd_rgbpack(0, 0, 0),
-	rb.lcd_rgbpack(0, 0, 0),
-	rb.lcd_rgbpack(255, 255, 255),
-}
-local NUM_COLOURS = table.getn(COLOURS)
-SCORES_FILE = "/pixel-painter.score"
-SAVE_FILE = "/pixel-painter.save"
-r,w,TEXT_LINE_HEIGHT = rb.font_getstringsize(" ", 1) --Get font height
---Determine which layout to use by considering the screen dimensions
---the +9 is so we have space for the chooser
-if rb.LCD_WIDTH > (rb.LCD_HEIGHT + 9) then
-	LAYOUT = 1 --Wider than high, status and chooser on right
-elseif rb.LCD_HEIGHT > (rb.LCD_WIDTH + 9) then
-	LAYOUT = 2 --Higher than wide, status and chooser below
-else
-	LAYOUT = 3 --Treat like a square screen, chooser on right, status below
-end
-
---Game variables (most are initialized in init_variables)
-local highscores = {false, false, false}
-
-local difficulty = 2 --1:easy, 2:medium, 3:hard
-local board_dimension = 0 --Number of rows and columns
-local chooser_pip_dimension = 6 --pixel dimension of the selected colour pip
-local block_width = 0 --pixel dimension of each game square
-local chooser_start_pos = 0 --x or y position of the first block (depending on LAYOUT)
-
-local board = {}
-local num_moves = 0
-local selected_colour = 1 --index of the current colour
-
---Convenience function
-function init_game(difficulty)
-	init_variables(difficulty)
-	board = generate_board(board_dimension)
-	rb.splash(1, "Calculating par...") --Will stay on screen until it's done
-	par = calculate_par(board)
-end
-
---Initialises the game variables at the given difficulty, and the UI
---variables for the screen LAYOUT
-function init_variables(difficulty)
-	board_dimension = diff_to_dimension(difficulty)
-
-	if LAYOUT == 1 then
-		block_width = rb.LCD_HEIGHT / board_dimension 
-		chooser_start_pos = (board_dimension)*block_width + 2
-		chooser_width = rb.LCD_WIDTH - chooser_start_pos
-		chooser_height = (rb.LCD_HEIGHT - 3*TEXT_LINE_HEIGHT) / NUM_COLOURS
-	elseif LAYOUT == 2 then
-		block_width = rb.LCD_WIDTH / board_dimension 
-		chooser_start_pos = board_dimension*block_width + 2 + TEXT_LINE_HEIGHT
-		chooser_width = rb.LCD_WIDTH / NUM_COLOURS
-		chooser_height = rb.LCD_HEIGHT - chooser_start_pos
-	else
-		if TEXT_LINE_HEIGHT > 9 then
-			block_width = (rb.LCD_HEIGHT - TEXT_LINE_HEIGHT) / board_dimension
-		else
-			block_width = (rb.LCD_HEIGHT - 9) / board_dimension
-		end
-		chooser_start_pos = (board_dimension)*block_width + 1
-		chooser_width = rb.LCD_WIDTH - chooser_start_pos
-		chooser_height = (rb.LCD_HEIGHT - TEXT_LINE_HEIGHT) / NUM_COLOURS
-	end
-
-	--Game variables
-	selected_colour = 1 
-	num_moves = 0
-end
-
 --Utility function makes a copy of the passed table
 function deepcopy(object)
     local lookup_table = {}
@@ -150,6 +59,8 @@ function calculate_par(game_board)
 		else
 			return moves
 		end
+		--Manual garbage collection is needed so it doesn't run out of
+		--memory
 		collectgarbage("collect")
 	until false
 end
@@ -186,14 +97,14 @@ function get_colours_count(game_board, x, y, original_colour)
 end
 
 --Returns a randomly coloured board of the indicated dimensions
-function generate_board(board_dimension)
+function generate_board(board_dimension, num_colours)
 	math.randomseed(rb.current_tick()+os.time())
 
 	local board = {}
 	for x=1,board_dimension do
 		board[x] = {}
 		for y=1,board_dimension do
-			board[x][y] = math.random(1,NUM_COLOURS)
+			board[x][y] = math.random(1,num_colours)
 		end
 	end
 
@@ -223,110 +134,6 @@ function fill_board(game_board, fill_colour, x, y, original_colour)
 	return 0
 end
 
---Draws the game board to screen
-function draw_board()
-	for x=1,board_dimension do
-		for y=1,board_dimension do
-			rb.lcd_set_foreground(COLOURS[board[x][y]])
-			rb.lcd_fillrect((x-1)*block_width, (y-1)*block_width, block_width, block_width)
-		end
-	end
-end
-
---Draw the colour chooser along with selected pip at the appropriate
---position
-function draw_chooser()
-	for i=1,NUM_COLOURS do
-		rb.lcd_set_foreground(COLOURS[i])
-		if LAYOUT == 1 or LAYOUT == 3 then
-			rb.lcd_fillrect(chooser_start_pos, (i - 1)*(chooser_height), chooser_width, chooser_height)
-		elseif LAYOUT == 2 then
-			rb.lcd_fillrect((i - 1)*(chooser_width), chooser_start_pos, chooser_width, chooser_height)
-		end
-	end
-
-	rb.lcd_set_foreground(PIP_COLOURS[selected_colour])
-	local xpos = 0
-	local ypos = 0
-	if LAYOUT == 1 or LAYOUT == 3 then
-		xpos = chooser_start_pos + (chooser_width - chooser_pip_dimension)/2
-		ypos = (selected_colour-1)*(chooser_height) + (chooser_height - chooser_pip_dimension)/2
-	elseif LAYOUT == 2 then
-		xpos = (selected_colour-1)*(chooser_width) + (chooser_width - chooser_pip_dimension)/2
-		ypos = chooser_start_pos + (chooser_height - chooser_pip_dimension)/2
-	end
-	rb.lcd_fillrect(xpos, ypos, chooser_pip_dimension, chooser_pip_dimension)
-end
-
---Draws the current moves, par and high score
-function draw_status()
-	local strings = {"Move", num_moves, "Par", par}
-	if highscores[difficulty] then
-		table.insert(strings, "Best")
-		table.insert(strings, highscores[difficulty])
-	end
-
-	if LAYOUT == 1 then
-		local function calc_string(var_len_str, static_str)
-			local avail_width = chooser_width - rb.font_getstringsize(static_str, 1)
-			local rtn_str = ""
-
-			for i=1,string.len(var_len_str) do
-				local c = string.sub(var_len_str, i, i)
-				local curr_width = rb.font_getstringsize(rtn_str, 1)
-				local width = rb.font_getstringsize(c, 1)
-
-				if curr_width + width <= avail_width then
-					rtn_str = rtn_str .. c
-				else
-					break
-				end
-			end
-			
-			return rtn_str, rb.font_getstringsize(rtn_str, 1)
-		end
-
-		local height = NUM_COLOURS*chooser_height
-		colon_width = rb.font_getstringsize(": ", 1)
-		for i = 1,table.getn(strings),2 do
-			local label, label_width = calc_string(strings[i], ": "..strings[i+1])
-
-			rb.lcd_set_foreground(rb.lcd_rgbpack(255,0,0))
-			rb.lcd_putsxy(chooser_start_pos, height, label..": ")
-			rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
-			rb.lcd_putsxy(chooser_start_pos + label_width + colon_width, height, strings[i+1])
-			height = height + TEXT_LINE_HEIGHT
-		end
-	else
-		local text_ypos = 0
-		if LAYOUT == 2 then
-			text_ypos = chooser_start_pos - TEXT_LINE_HEIGHT - 1
-		else
-			text_ypos = rb.LCD_HEIGHT - TEXT_LINE_HEIGHT
-		end
-
-		space_width = rb.font_getstringsize(" ", 1)
-		local xpos = 0
-		for i = 1,table.getn(strings),2 do
-			rb.lcd_set_foreground(rb.lcd_rgbpack(255,0,0))
-			rb.lcd_putsxy(xpos, text_ypos, strings[i]..": ")
-			xpos = xpos + rb.font_getstringsize(strings[i]..": ", 1)
-			rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
-			rb.lcd_putsxy(xpos, text_ypos, strings[i+1])
-			xpos = xpos + rb.font_getstringsize(strings[i+1], 1) + space_width
-		end
-	end
-end
-
---Convenience function to redraw the whole board to screen
-function redraw_game()
-	rb.lcd_clear_display()
-	draw_board()
-	draw_chooser()
-	draw_status()
-	rb.lcd_update()
-end
-
 --Checks whether the given board is a single colour
 function check_win(game_board)
 	for x=1,board_dimension do
@@ -340,10 +147,20 @@ function check_win(game_board)
 	return true
 end
 
+function diff_to_dimension(difficulty)
+	if difficulty == 1 then
+		return 8
+	elseif difficulty == 2 then
+		return 16
+	else
+		return 22
+	end
+end
+
 --Attempt to load the save file into the game variables
 --Returns true on success, false otherwise
-function load_game()
-	local f = io.open(SAVE_FILE, "r")
+function load_game(filename)
+	local f = io.open(filename, "r")
 	if f == nil then
 		return false
 	else
@@ -372,8 +189,8 @@ function load_game()
 end
 
 --Saves the game state to file
-function save_game()
-	local f = io.open(SAVE_FILE, "w")
+function save_game(filename)
+	local f = io.open(filename, "w")
 	f:write(difficulty,"\n")
 	f:write(par,"\n")
 	f:write(num_moves,"\n")
@@ -389,8 +206,8 @@ end
 
 --Loads the high scores from file
 --Returns true on success, false otherwise
-function load_scores()
-	local f = io.open(SCORES_FILE, "r")
+function load_scores(filename)
+	local f = io.open(filename, "r")
 	if f == nil then
 		return false
 	else
@@ -410,8 +227,8 @@ function load_scores()
 end
 
 --Saves the high scores to file
-function save_scores()
-	local f = io.open(SCORES_FILE, "w")
+function save_scores(filename)
+	local f = io.open(filename, "w")
 	for i=1,3 do
 		local value = highscores[i]
 		if value == false then
@@ -422,166 +239,365 @@ function save_scores()
 	f:close()
 end
 
-function diff_to_dimension(difficulty)
-	if difficulty == 1 then
-		return 8
-	elseif difficulty == 2 then
-		return 16
-	else
-		return 22
+--Check if we're being run in RB, and not being require()-ed
+if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
+	if rb.lcd_rgbpack == nil then
+		rb.splash(2*rb.HZ, "Non RGB targets not currently supported")
+		os.exit()
 	end
-end
 
---Draws help to screen, waits for a keypress to exit
-function app_help()
-	rb.lcd_clear_display()
+	---------------------
+	--RB Game variables--
+	---------------------
 
-	local title = "Pixel painter help"
-	local rtn, title_width, h = rb.font_getstringsize(title, 1)
-	local title_xpos = (rb.LCD_WIDTH - title_width) / 2
-	local space_width = rb.font_getstringsize(" ", 1)
+	--The colours used by the game
+	COLOURS = {
+		rb.lcd_rgbpack(255, 119, 34),
+		rb.lcd_rgbpack(255, 255, 102),
+		rb.lcd_rgbpack(119, 204, 51),
+		rb.lcd_rgbpack(102, 170, 255),
+		rb.lcd_rgbpack(51, 68, 255),
+		rb.lcd_rgbpack(51, 51, 51),
+	}
+	--The colour of the selection pip
+	PIP_COLOURS = {
+		rb.lcd_rgbpack(0, 0, 0),
+		rb.lcd_rgbpack(0, 0, 0),
+		rb.lcd_rgbpack(0, 0, 0),
+		rb.lcd_rgbpack(0, 0, 0),
+		rb.lcd_rgbpack(0, 0, 0),
+		rb.lcd_rgbpack(255, 255, 255),
+	}
+	NUM_COLOURS = table.getn(COLOURS)
 
-	--Draw title
-	rb.lcd_putsxy(title_xpos, 0, title)
-	rb.lcd_hline(title_xpos, title_xpos + title_width, TEXT_LINE_HEIGHT)
+	SCORES_FILE = "/pixel-painter.score"
+	SAVE_FILE = "/pixel-painter.save"
+	r,w,TEXT_LINE_HEIGHT = rb.font_getstringsize(" ", 1) --Get font height
+	--Determine which layout to use by considering the screen dimensions
+	--the +9 is so we have space for the chooser
+	if rb.LCD_WIDTH > (rb.LCD_HEIGHT + 9) then
+		LAYOUT = 1 --Wider than high, status and chooser on right
+	elseif rb.LCD_HEIGHT > (rb.LCD_WIDTH + 9) then
+		LAYOUT = 2 --Higher than wide, status and chooser below
+	else
+		LAYOUT = 3 --Treat like a square screen, chooser on right, status below
+	end
 
-	local body_text = [[
-The aim is to fill the screen with a single colour. Each move you select a new colour which is then filled in from the top left corner.
+	--Display variables
+	chooser_pip_dimension = 6 --pixel dimension of the selected colour pip
+	block_width = 0 --pixel dimension of each game square
+	chooser_start_pos = 0 --x or y position of the first block (depending on LAYOUT)
+	selected_colour = 1 --index of the current colour
 
-The bottom right displays the number of moves taken, the number of moves used by the computer and your best score relative to the computer's.
-]]
-	local body_len = string.len(body_text)
+	--Populated by load_scores()
+	highscores = {false, false, false}
 
-	--Draw body text
-	local word_buffer = ""
-	local xpos = 0
-	local ypos = TEXT_LINE_HEIGHT * 2 
-	for i=1,body_len do
-		local c = string.sub(body_text, i, i)
-		if c == " " or c == "\n" then
-			local word_length = rb.font_getstringsize(word_buffer, 1)
-			if (xpos + word_length) > rb.LCD_WIDTH then
-				xpos = 0
-				ypos = ypos + TEXT_LINE_HEIGHT
-			end
-			rb.lcd_putsxy(xpos, ypos, word_buffer)
+	--Game variables (most are initialized in init_variables)
+	difficulty = 2 --1:easy, 2:medium, 3:hard
+	board_dimension = 0 --Number of rows and columns
+	board = {}
+	num_moves = 0
 
-			word_buffer = ""
-			if c == "\n" then
-				xpos = 0
-				ypos = ypos + TEXT_LINE_HEIGHT
-			else
-				xpos = xpos + word_length + space_width
-			end
+	-----------------------------------
+	--Display and interface functions--
+	-----------------------------------
+
+	--Convenience function
+	function init_game(difficulty)
+		init_variables(difficulty)
+		board = generate_board(board_dimension, NUM_COLOURS)
+		rb.splash(1, "Calculating par...") --Will stay on screen until it's done
+		par = calculate_par(board)
+	end
+
+	--Initialises the game variables at the given difficulty, and the UI
+	--variables for the screen LAYOUT
+	function init_variables(difficulty)
+		board_dimension = diff_to_dimension(difficulty)
+
+		if LAYOUT == 1 then
+			block_width = rb.LCD_HEIGHT / board_dimension 
+			chooser_start_pos = (board_dimension)*block_width + 2
+			chooser_width = rb.LCD_WIDTH - chooser_start_pos
+			chooser_height = (rb.LCD_HEIGHT - 3*TEXT_LINE_HEIGHT) / NUM_COLOURS
+		elseif LAYOUT == 2 then
+			block_width = rb.LCD_WIDTH / board_dimension 
+			chooser_start_pos = board_dimension*block_width + 2 + TEXT_LINE_HEIGHT
+			chooser_width = rb.LCD_WIDTH / NUM_COLOURS
+			chooser_height = rb.LCD_HEIGHT - chooser_start_pos
 		else
-			word_buffer = word_buffer .. c
+			if TEXT_LINE_HEIGHT > 9 then
+				block_width = (rb.LCD_HEIGHT - TEXT_LINE_HEIGHT) / board_dimension
+			else
+				block_width = (rb.LCD_HEIGHT - 9) / board_dimension
+			end
+			chooser_start_pos = (board_dimension)*block_width + 1
+			chooser_width = rb.LCD_WIDTH - chooser_start_pos
+			chooser_height = (rb.LCD_HEIGHT - TEXT_LINE_HEIGHT) / NUM_COLOURS
+		end
+
+		--Game variables
+		selected_colour = 1 
+		num_moves = 0
+	end
+
+	--Draws the game board to screen
+	function draw_board()
+		for x=1,board_dimension do
+			for y=1,board_dimension do
+				rb.lcd_set_foreground(COLOURS[board[x][y]])
+				rb.lcd_fillrect((x-1)*block_width, (y-1)*block_width, block_width, block_width)
+			end
 		end
 	end
 
-	rb.lcd_update()
-	local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
-end
+	--Draw the colour chooser along with selected pip at the appropriate
+	--position
+	function draw_chooser()
+		for i=1,NUM_COLOURS do
+			rb.lcd_set_foreground(COLOURS[i])
+			if LAYOUT == 1 or LAYOUT == 3 then
+				rb.lcd_fillrect(chooser_start_pos, (i - 1)*(chooser_height), chooser_width, chooser_height)
+			elseif LAYOUT == 2 then
+				rb.lcd_fillrect((i - 1)*(chooser_width), chooser_start_pos, chooser_width, chooser_height)
+			end
+		end
 
---Draws the application menu and handles its logic
-function app_menu()
-	local options = {"Resume game", "Start new game", "Change difficulty", 
-		"Help", "Quit without saving", "Quit"}
-	local item = rb.do_menu("Pixel painter menu", options, nil, false)
+		rb.lcd_set_foreground(PIP_COLOURS[selected_colour])
+		local xpos = 0
+		local ypos = 0
+		if LAYOUT == 1 or LAYOUT == 3 then
+			xpos = chooser_start_pos + (chooser_width - chooser_pip_dimension)/2
+			ypos = (selected_colour-1)*(chooser_height) + (chooser_height - chooser_pip_dimension)/2
+		elseif LAYOUT == 2 then
+			xpos = (selected_colour-1)*(chooser_width) + (chooser_width - chooser_pip_dimension)/2
+			ypos = chooser_start_pos + (chooser_height - chooser_pip_dimension)/2
+		end
+		rb.lcd_fillrect(xpos, ypos, chooser_pip_dimension, chooser_pip_dimension)
+	end
 
-	if item == 0 then
-		redraw_game()
-	elseif item == 1 then
-		os.remove(SAVE_FILE)
-		init_game(difficulty)
-		redraw_game()
-	elseif item == 2 then
-		local diff = rb.do_menu("Difficulty", {"Easy", "Medium", "Hard"}, difficulty - 1, false)
-		if diff < 0 then
-			app_menu()
+	--Draws the current moves, par and high score
+	function draw_status()
+		local strings = {"Move", num_moves, "Par", par}
+		if highscores[difficulty] then
+			table.insert(strings, "Best")
+			table.insert(strings, highscores[difficulty])
+		end
+
+		if LAYOUT == 1 then
+			local function calc_string(var_len_str, static_str)
+				local avail_width = chooser_width - rb.font_getstringsize(static_str, 1)
+				local rtn_str = ""
+
+				for i=1,string.len(var_len_str) do
+					local c = string.sub(var_len_str, i, i)
+					local curr_width = rb.font_getstringsize(rtn_str, 1)
+					local width = rb.font_getstringsize(c, 1)
+
+					if curr_width + width <= avail_width then
+						rtn_str = rtn_str .. c
+					else
+						break
+					end
+				end
+				
+				return rtn_str, rb.font_getstringsize(rtn_str, 1)
+			end
+
+			local height = NUM_COLOURS*chooser_height
+			colon_width = rb.font_getstringsize(": ", 1)
+			for i = 1,table.getn(strings),2 do
+				local label, label_width = calc_string(strings[i], ": "..strings[i+1])
+
+				rb.lcd_set_foreground(rb.lcd_rgbpack(255,0,0))
+				rb.lcd_putsxy(chooser_start_pos, height, label..": ")
+				rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
+				rb.lcd_putsxy(chooser_start_pos + label_width + colon_width, height, strings[i+1])
+				height = height + TEXT_LINE_HEIGHT
+			end
 		else
-			difficulty = diff + 1 --lua is 1 indexed
+			local text_ypos = 0
+			if LAYOUT == 2 then
+				text_ypos = chooser_start_pos - TEXT_LINE_HEIGHT - 1
+			else
+				text_ypos = rb.LCD_HEIGHT - TEXT_LINE_HEIGHT
+			end
+
+			space_width = rb.font_getstringsize(" ", 1)
+			local xpos = 0
+			for i = 1,table.getn(strings),2 do
+				rb.lcd_set_foreground(rb.lcd_rgbpack(255,0,0))
+				rb.lcd_putsxy(xpos, text_ypos, strings[i]..": ")
+				xpos = xpos + rb.font_getstringsize(strings[i]..": ", 1)
+				rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
+				rb.lcd_putsxy(xpos, text_ypos, strings[i+1])
+				xpos = xpos + rb.font_getstringsize(strings[i+1], 1) + space_width
+			end
+		end
+	end
+
+	--Convenience function to redraw the whole board to screen
+	function redraw_game()
+		rb.lcd_clear_display()
+		draw_board()
+		draw_chooser()
+		draw_status()
+		rb.lcd_update()
+	end
+
+
+	--Draws help to screen, waits for a keypress to exit
+	function app_help()
+		rb.lcd_clear_display()
+
+		local title = "Pixel painter help"
+		local rtn, title_width, h = rb.font_getstringsize(title, 1)
+		local title_xpos = (rb.LCD_WIDTH - title_width) / 2
+		local space_width = rb.font_getstringsize(" ", 1)
+
+		--Draw title
+		rb.lcd_putsxy(title_xpos, 0, title)
+		rb.lcd_hline(title_xpos, title_xpos + title_width, TEXT_LINE_HEIGHT)
+
+		local body_text = [[
+	The aim is to fill the screen with a single colour. Each move you select a new colour which is then filled in from the top left corner.
+
+	The bottom right displays the number of moves taken, the number of moves used by the computer and your best score relative to the computer's.
+	]]
+		local body_len = string.len(body_text)
+
+		--Draw body text
+		local word_buffer = ""
+		local xpos = 0
+		local ypos = TEXT_LINE_HEIGHT * 2 
+		for i=1,body_len do
+			local c = string.sub(body_text, i, i)
+			if c == " " or c == "\n" then
+				local word_length = rb.font_getstringsize(word_buffer, 1)
+				if (xpos + word_length) > rb.LCD_WIDTH then
+					xpos = 0
+					ypos = ypos + TEXT_LINE_HEIGHT
+				end
+				rb.lcd_putsxy(xpos, ypos, word_buffer)
+
+				word_buffer = ""
+				if c == "\n" then
+					xpos = 0
+					ypos = ypos + TEXT_LINE_HEIGHT
+				else
+					xpos = xpos + word_length + space_width
+				end
+			else
+				word_buffer = word_buffer .. c
+			end
+		end
+
+		rb.lcd_update()
+		local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
+	end
+
+	--Draws the application menu and handles its logic
+	function app_menu()
+		local options = {"Resume game", "Start new game", "Change difficulty", 
+			"Help", "Quit without saving", "Quit"}
+		local item = rb.do_menu("Pixel painter menu", options, nil, false)
+
+		if item == 0 then
+			redraw_game()
+		elseif item == 1 then
 			os.remove(SAVE_FILE)
 			init_game(difficulty)
 			redraw_game()
-		end
-	elseif item == 3 then
-		app_help()
-		redraw_game()
-	elseif item == 4 then
-		os.remove(SAVE_FILE)
-		os.exit()		
-	elseif item == 5 then
-		rb.splash(1, "Saving game...") --Will stay on screen till the app exits
-		save_game()
-		os.exit()
-	end
-end
-
---Determine what victory text to show depending on the relation of the
---score to the calculated par value
-function win_text(delta)
-	if delta < 0 then
-		return "You were "..(-1*delta).." under par"
-	elseif delta > 0 then
-		return "You were "..delta.." over par"
-	else
-		return "You attained par"
-	end
-end
-
-----------------------------------
---Code under here is run on load--
-----------------------------------
-
-if not load_game() then
-	init_game(difficulty)
-end
-load_scores()
-redraw_game()
-
---Set the keys to use for scrolling the chooser
-if LAYOUT == 2 then
-	prev_action = rb.actions.ACTION_KBD_LEFT
-	next_action = rb.actions.ACTION_KBD_RIGHT
-	kill_action = rb.actions.ACTION_KBD_UP
-else
-	prev_action = rb.actions.ACTION_KBD_UP
-	next_action = rb.actions.ACTION_KBD_DOWN
-	kill_action = rb.actions.ACTION_KBD_LEFT
-end
-
-repeat
-	local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
-
-	if action == rb.actions.ACTION_KBD_SELECT then
-		if selected_colour ~= board[1][1] then
-			fill_board()
-			num_moves = num_moves + 1
-			redraw_game()
-			if check_win(board) then
-				local par_diff = num_moves - par
-				if not highscores[difficulty] or par_diff < highscores[difficulty] then
-					rb.splash(3*rb.HZ, win_text(par_diff)..", a new high score!")
-					highscores[difficulty] = par_diff
-					save_scores()
-				else
-					rb.splash(3*rb.HZ, win_text(par_diff)..".")
-				end
+		elseif item == 2 then
+			local diff = rb.do_menu("Difficulty", {"Easy", "Medium", "Hard"}, difficulty - 1, false)
+			if diff < 0 then
+				app_menu()
+			else
+				difficulty = diff + 1 --lua is 1 indexed
 				os.remove(SAVE_FILE)
-				os.exit()
+				init_game(difficulty)
+				redraw_game()
 			end
-		end
-	elseif action == next_action then
-		if selected_colour < NUM_COLOURS then
-			selected_colour = selected_colour + 1
+		elseif item == 3 then
+			app_help()
 			redraw_game()
+		elseif item == 4 then
+			os.remove(SAVE_FILE)
+			os.exit()		
+		elseif item == 5 then
+			rb.splash(1, "Saving game...") --Will stay on screen till the app exits
+			save_game(SAVE_FILE)
+			os.exit()
 		end
-	elseif action == prev_action then
-		if selected_colour > 1 then
-			selected_colour = selected_colour - 1
-			redraw_game()
-		end
-	elseif action == rb.actions.ACTION_KBD_ABORT then 
-		app_menu()
 	end
-until action == kill_action
+
+	--Determine what victory text to show depending on the relation of the
+	--score to the calculated par value
+	function win_text(delta)
+		if delta < 0 then
+			return "You were "..(-1*delta).." under par"
+		elseif delta > 0 then
+			return "You were "..delta.." over par"
+		else
+			return "You attained par"
+		end
+	end
+
+	------------------
+	--Game main loop--
+	------------------
+
+	if not load_game(SAVE_FILE) then
+		init_game(difficulty)
+	end
+	load_scores(SCORES_FILE)
+	redraw_game()
+
+	require("actions")
+	--Set the keys to use for scrolling the chooser
+	if LAYOUT == 2 then
+		prev_action = rb.actions.ACTION_KBD_LEFT
+		next_action = rb.actions.ACTION_KBD_RIGHT
+		kill_action = rb.actions.ACTION_KBD_UP
+	else
+		prev_action = rb.actions.ACTION_KBD_UP
+		next_action = rb.actions.ACTION_KBD_DOWN
+		kill_action = rb.actions.ACTION_KBD_LEFT
+	end
+
+	repeat
+		local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
+
+		if action == rb.actions.ACTION_KBD_SELECT then
+			if selected_colour ~= board[1][1] then
+				fill_board()
+				num_moves = num_moves + 1
+				redraw_game()
+				if check_win(board) then
+					local par_diff = num_moves - par
+					if not highscores[difficulty] or par_diff < highscores[difficulty] then
+						rb.splash(3*rb.HZ, win_text(par_diff)..", a new high score!")
+						highscores[difficulty] = par_diff
+						save_scores(SCORES_FILE)
+					else
+						rb.splash(3*rb.HZ, win_text(par_diff)..".")
+					end
+					os.remove(SAVE_FILE)
+					os.exit()
+				end
+			end
+		elseif action == next_action then
+			if selected_colour < NUM_COLOURS then
+				selected_colour = selected_colour + 1
+				redraw_game()
+			end
+		elseif action == prev_action then
+			if selected_colour > 1 then
+				selected_colour = selected_colour - 1
+				redraw_game()
+			end
+		elseif action == rb.actions.ACTION_KBD_ABORT then 
+			app_menu()
+		end
+	until action == kill_action
+end
