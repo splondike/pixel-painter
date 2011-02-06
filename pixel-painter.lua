@@ -99,8 +99,8 @@ function get_colours_count(board, x, y, original_colour)
 end
 
 --Returns a randomly coloured board of the indicated dimensions
-function generate_board(board_dimension, num_colours)
-	math.randomseed(rb.current_tick()+os.time())
+function generate_board(board_dimension, num_colours, seed)
+	math.randomseed(seed)
 
 	local board = {}
 	for x=1,board_dimension do
@@ -319,7 +319,7 @@ if rb ~= nil then
 		state["selected_colour"] = 1
 		state["move_number"] = 0
 		state["difficulty"] = difficulty
-		state["board"] = generate_board(board_dimension, NUM_COLOURS)
+		state["board"] = generate_board(board_dimension, NUM_COLOURS, rb.current_tick()+os.time())
 		rb.splash(1, "Calculating par...") --Will stay on screen until it's done
 		state["par"] = calculate_par(state["board"])
 
