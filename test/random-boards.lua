@@ -1,7 +1,7 @@
 #!/usr/bin/env lua
 
 as_library = true
-dofile("../pixel-painter.lua")
+dofile("pixel-painter.lua")
 
 difficulty = 3 --Hard
 for i=1,10000 do
