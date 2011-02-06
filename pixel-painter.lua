@@ -34,8 +34,9 @@ end
 --moves required. Each turn, the function picks the move which fills in
 --the greatest area of board. The number of moves required to complete
 --it is returned.
-function calculate_par(game_board)
-	local test_game_copy = deepcopy(game_board)
+function calculate_par(board)
+	local board_dimension = table.getn(board)
+	local test_game_copy = deepcopy(board)
 	local moves = 0
 
 	repeat
@@ -69,27 +70,28 @@ end
 --region identified by the passed parameters. A colour indexed table
 --containing the counts is returned.
 --
---The game_board table is also adjusted as follows: The filled region's
+--The 'board' table is also adjusted as follows: The filled region's
 --colour index is set to zero and each of the adjacent areas' colour
 --indexes are multiplied by -1. These invalid colour values are later
 --corrected in the calculate_par function.
-function get_colours_count(game_board, x, y, original_colour)
+function get_colours_count(board, x, y, original_colour)
+	local board_dimension = table.getn(board)
 	local count_table = {0, 0, 0, 0, 0, 0}
 
 	if x > 0 and y > 0 and x <= board_dimension and y <= board_dimension then
-		if game_board[x][y] == original_colour then
-			game_board[x][y] = 0
+		if board[x][y] == original_colour then
+			board[x][y] = 0
 
-			local r1 = get_colours_count(game_board, x - 1, y, original_colour)
-			local r2 = get_colours_count(game_board, x, y - 1, original_colour)
-			local r3 = get_colours_count(game_board, x + 1, y, original_colour)
-			local r4 = get_colours_count(game_board, x, y + 1, original_colour)
+			local r1 = get_colours_count(board, x - 1, y, original_colour)
+			local r2 = get_colours_count(board, x, y - 1, original_colour)
+			local r3 = get_colours_count(board, x + 1, y, original_colour)
+			local r4 = get_colours_count(board, x, y + 1, original_colour)
 			for i=1,NUM_COLOURS do
 				count_table[i] = r1[i] + r2[i] + r3[i] + r4[i]
 			end
-		elseif game_board[x][y] > 0 then
-			local c = game_board[x][y]
-			count_table[c] = fill_board(game_board, -1 * c, x, y, c)
+		elseif board[x][y] > 0 then
+			local c = board[x][y]
+			count_table[c] = fill_board(board, -1 * c, x, y, c)
 		end
 	end
 
@@ -113,32 +115,26 @@ end
 
 --Flood fills the board from the top left using selected_colour
 --Returns the number of boxes filled
-function fill_board(game_board, fill_colour, x, y, original_colour)
-	--defaults
-	x = x or 1
-	y = y or 1
-	fill_colour = fill_colour or selected_colour
-	game_board = game_board or board
-	original_colour = original_colour or game_board[1][1]
-
+function fill_board(board, fill_colour, x, y, original_colour)
+	local board_dimension = table.getn(board)
 	if x > 0 and y > 0 and x <= board_dimension and 
-		y <= board_dimension and game_board[x][y] == original_colour then
+		y <= board_dimension and board[x][y] == original_colour then
 
-		game_board[x][y] = fill_colour
-		return fill_board(game_board, fill_colour, x - 1, y, original_colour) + 
-		       fill_board(game_board, fill_colour, x, y - 1, original_colour) +
-		       fill_board(game_board, fill_colour, x + 1, y, original_colour) +
-		       fill_board(game_board, fill_colour, x, y + 1, original_colour) + 1
+		board[x][y] = fill_colour
+		return fill_board(board, fill_colour, x - 1, y, original_colour) + 
+		       fill_board(board, fill_colour, x, y - 1, original_colour) +
+		       fill_board(board, fill_colour, x + 1, y, original_colour) +
+		       fill_board(board, fill_colour, x, y + 1, original_colour) + 1
 	end
 
 	return 0
 end
 
 --Checks whether the given board is a single colour
-function check_win(game_board)
-	for x=1,board_dimension do
-		for y=1,board_dimension do
-			if game_board[x][y] ~= game_board[1][1] then
+function check_win(board)
+	for x,col in pairs(board) do
+		for y,value in pairs(col) do
+			if value ~= board[1][1] then
 				return false
 			end
 		end
@@ -147,23 +143,21 @@ function check_win(game_board)
 	return true
 end
 
---Attempt to load the save file into the game variables
---Returns true on success, false otherwise
+--Attempt to load the game variables stored in the indicated save file.
+--Returns a table containing game variables if the file can be opened, 
+--false otherwise.
+--Table keys are: difficulty, par, move_number, selected_colour, board
 function load_game(filename)
 	local f = io.open(filename, "r")
-	if f == nil then
-		return false
-	else
-		difficulty = tonumber(f:read())
-		--Set up the positioning variables
-		init_variables(difficulty)
+	if f ~= nil then
+		local rtn = {}
+		rtn["difficulty"] = tonumber(f:read())
+		rtn["par"] = tonumber(f:read())
+		rtn["move_number"] = tonumber(f:read())
+		rtn["selected_colour"] = tonumber(f:read())
 
-		par = tonumber(f:read())
-		num_moves = tonumber(f:read())
-		selected_colour = tonumber(f:read())
-
-		board={}
-		local dimension = diff_to_dimension(difficulty)
+		local board={}
+		local dimension = diff_to_dimension(rtn["difficulty"])
 		for x=1,dimension do
 			board[x] = {}
 			local line = f:read()
@@ -172,36 +166,44 @@ function load_game(filename)
 				board[x][y] = tonumber(bits[y])
 			end
 		end
+		rtn["board"] = board
 
 		f:close()
-		return true
+		return rtn
+	else
+		return false
 	end
 end
 
 --Saves the game state to file
-function save_game(board, filename)
+function save_game(state, filename)
 	local f = io.open(filename, "w")
-	f:write(difficulty,"\n")
-	f:write(par,"\n")
-	f:write(num_moves,"\n")
-	f:write(selected_colour,"\n")
-	for x=1,board_dimension do
-		for y=1,board_dimension do
-			f:write(board[x][y]," ")
+	if f ~= nil then
+		f:write(state["difficulty"],"\n")
+		f:write(state["par"],"\n")
+		f:write(state["move_number"],"\n")
+		f:write(state["selected_colour"],"\n")
+		local board = state["board"]
+		local dimension = diff_to_dimension(state["difficulty"])
+		for x=1,dimension do
+			for y=1,dimension do
+				f:write(board[x][y]," ")
+			end
+			f:write("\n")
 		end
-		f:write("\n")
+		f:close()
+		return true
+	else
+		return false
 	end
-	f:close()
 end
 
 --Loads the high scores from file
 --Returns true on success, false otherwise
 function load_scores(filename)
 	local f = io.open(filename, "r")
-	if f == nil then
-		return false
-	else
-		highscores = {}
+	if f ~= nil then
+		local highscores = {}
 		for i=1,3 do
 			local line = f:read()
 			local value = false
@@ -212,25 +214,43 @@ function load_scores(filename)
 			highscores[i] = value
 		end
 		f:close()
-		return true
+		return highscores
+	else
+		return false
 	end
 end
 
 --Saves the high scores to file
-function save_scores(filename)
+function save_scores(highscores, filename)
 	local f = io.open(filename, "w")
-	for i=1,3 do
-		local value = highscores[i]
-		if value == false then
-			value = ""
+	if f ~= nil then
+		for i=1,3 do
+			local value = highscores[i]
+			if value == false then
+				value = ""
+			end
+			f:write(value,"\n")
 		end
-		f:write(value,"\n")
+		f:close()
+		return true
+	else
+		return false
 	end
-	f:close()
 end
 
---Check if we're being run in RB, and not being require()-ed
-if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
+function diff_to_dimension(difficulty)
+	if difficulty == 1 then
+		return 8
+	elseif difficulty == 2 then
+		return 16
+	else
+		return 22
+	end
+end
+
+--Don't run the RB stuff if we're not running under RB
+if rb ~= nil then
+
 	if rb.lcd_rgbpack == nil then
 		rb.splash(2*rb.HZ, "Non RGB targets not currently supported")
 		os.exit()
@@ -259,6 +279,7 @@ if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
 		rb.lcd_rgbpack(255, 255, 255),
 	}
 	NUM_COLOURS = table.getn(COLOURS)
+	DEFAULT_DIFFICULTY = 1 --1: Easy, 2: Normal, 3: Hard
 
 	SCORES_FILE = "/pixel-painter.score"
 	SAVE_FILE = "/pixel-painter.save"
@@ -277,33 +298,37 @@ if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
 	chooser_pip_dimension = 6 --pixel dimension of the selected colour pip
 	block_width = 0 --pixel dimension of each game square
 	chooser_start_pos = 0 --x or y position of the first block (depending on LAYOUT)
-	selected_colour = 1 --index of the current colour
 
 	--Populated by load_scores()
 	highscores = {false, false, false}
 
-	--Game variables (most are initialized in init_variables)
-	difficulty = 2 --1:easy, 2:medium, 3:hard
-	board_dimension = 0 --Number of rows and columns
-	board = {}
-	num_moves = 0
+	--A table containing the game state, initialised by init_game() or
+	--load_game(), see
+	game_state = {}
 
 	-----------------------------------
 	--Display and interface functions--
 	-----------------------------------
 
-	--Convenience function
+	--Sets up a new game and display variables for the indicated
+	--difficulty
 	function init_game(difficulty)
-		init_variables(difficulty)
-		board = generate_board(board_dimension, NUM_COLOURS)
+		init_display_variables(difficulty)
+		local state = {}
+		local board_dimension = diff_to_dimension(difficulty)
+		state["selected_colour"] = 1
+		state["move_number"] = 0
+		state["difficulty"] = difficulty
+		state["board"] = generate_board(board_dimension, NUM_COLOURS)
 		rb.splash(1, "Calculating par...") --Will stay on screen until it's done
-		par = calculate_par(board)
+		state["par"] = calculate_par(state["board"])
+
+		return state
 	end
 
-	--Initialises the game variables at the given difficulty, and the UI
-	--variables for the screen LAYOUT
-	function init_variables(difficulty)
-		board_dimension = diff_to_dimension(difficulty)
+	--Initialises the display variables for the screen LAYOUT
+	function init_display_variables(difficulty)
+		local board_dimension = diff_to_dimension(difficulty)
 
 		if LAYOUT == 1 then
 			block_width = rb.LCD_HEIGHT / board_dimension 
@@ -325,27 +350,13 @@ if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
 			chooser_width = rb.LCD_WIDTH - chooser_start_pos
 			chooser_height = (rb.LCD_HEIGHT - TEXT_LINE_HEIGHT) / NUM_COLOURS
 		end
-
-		--Game variables
-		selected_colour = 1 
-		num_moves = 0
-	end
-
-	function diff_to_dimension(difficulty)
-		if difficulty == 1 then
-			return 8
-		elseif difficulty == 2 then
-			return 16
-		else
-			return 22
-		end
 	end
 
 	--Draws the game board to screen
-	function draw_board()
-		for x=1,board_dimension do
-			for y=1,board_dimension do
-				rb.lcd_set_foreground(COLOURS[board[x][y]])
+	function draw_board(board)
+		for x,col in pairs(board) do
+			for y,value in pairs(col) do
+				rb.lcd_set_foreground(COLOURS[value])
 				rb.lcd_fillrect((x-1)*block_width, (y-1)*block_width, block_width, block_width)
 			end
 		end
@@ -353,7 +364,7 @@ if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
 
 	--Draw the colour chooser along with selected pip at the appropriate
 	--position
-	function draw_chooser()
+	function draw_chooser(selected_colour)
 		for i=1,NUM_COLOURS do
 			rb.lcd_set_foreground(COLOURS[i])
 			if LAYOUT == 1 or LAYOUT == 3 then
@@ -377,11 +388,11 @@ if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
 	end
 
 	--Draws the current moves, par and high score
-	function draw_status()
-		local strings = {"Move", num_moves, "Par", par}
-		if highscores[difficulty] then
+	function draw_status(move_number, par, highscore)
+		local strings = {"Move", move_number, "Par", par}
+		if highscore then
 			table.insert(strings, "Best")
-			table.insert(strings, highscores[difficulty])
+			table.insert(strings, highscore)
 		end
 
 		if LAYOUT == 1 then
@@ -437,11 +448,12 @@ if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
 	end
 
 	--Convenience function to redraw the whole board to screen
-	function redraw_game()
+	function redraw_game(game_state)
 		rb.lcd_clear_display()
-		draw_board()
-		draw_chooser()
-		draw_status()
+		draw_board(game_state["board"])
+		draw_chooser(game_state["selected_colour"])
+		draw_status(game_state["move_number"], game_state["par"], 
+			highscores[game_state["difficulty"]])
 		rb.lcd_update()
 	end
 
@@ -503,30 +515,30 @@ if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
 		local item = rb.do_menu("Pixel painter menu", options, nil, false)
 
 		if item == 0 then
-			redraw_game()
+			redraw_game(game_state)
 		elseif item == 1 then
 			os.remove(SAVE_FILE)
-			init_game(difficulty)
-			redraw_game()
+			game_state = init_game(game_state["difficulty"])
+			redraw_game(game_state)
 		elseif item == 2 then
-			local diff = rb.do_menu("Difficulty", {"Easy", "Medium", "Hard"}, difficulty - 1, false)
+			local diff = rb.do_menu("Difficulty", {"Easy", "Medium", "Hard"}, game_state["difficulty"] - 1, false)
 			if diff < 0 then
 				app_menu()
 			else
-				difficulty = diff + 1 --lua is 1 indexed
+				local difficulty = diff + 1 --lua is 1 indexed
 				os.remove(SAVE_FILE)
-				init_game(difficulty)
-				redraw_game()
+				game_state = init_game(difficulty)
+				redraw_game(game_state)
 			end
 		elseif item == 3 then
 			app_help()
-			redraw_game()
+			redraw_game(game_state)
 		elseif item == 4 then
 			os.remove(SAVE_FILE)
 			os.exit()		
 		elseif item == 5 then
 			rb.splash(1, "Saving game...") --Will stay on screen till the app exits
-			save_game(SAVE_FILE)
+			save_game(game_state,SAVE_FILE)
 			os.exit()
 		end
 	end
@@ -547,57 +559,70 @@ if not arg and type(package.loaded["pixel-painter"]) ~= "userdata" then
 	--Game main loop--
 	------------------
 
-	if not load_game(SAVE_FILE) then
-		init_game(difficulty)
-	end
-	load_scores(SCORES_FILE)
-	redraw_game()
-
-	require("actions")
-	--Set the keys to use for scrolling the chooser
-	if LAYOUT == 2 then
-		prev_action = rb.actions.ACTION_KBD_LEFT
-		next_action = rb.actions.ACTION_KBD_RIGHT
-		kill_action = rb.actions.ACTION_KBD_UP
-	else
-		prev_action = rb.actions.ACTION_KBD_UP
-		next_action = rb.actions.ACTION_KBD_DOWN
-		kill_action = rb.actions.ACTION_KBD_LEFT
-	end
-
-	repeat
-		local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
-
-		if action == rb.actions.ACTION_KBD_SELECT then
-			if selected_colour ~= board[1][1] then
-				fill_board()
-				num_moves = num_moves + 1
-				redraw_game()
-				if check_win(board) then
-					local par_diff = num_moves - par
-					if not highscores[difficulty] or par_diff < highscores[difficulty] then
-						rb.splash(3*rb.HZ, win_text(par_diff)..", a new high score!")
-						highscores[difficulty] = par_diff
-						save_scores(SCORES_FILE)
-					else
-						rb.splash(3*rb.HZ, win_text(par_diff)..".")
-					end
-					os.remove(SAVE_FILE)
-					os.exit()
-				end
-			end
-		elseif action == next_action then
-			if selected_colour < NUM_COLOURS then
-				selected_colour = selected_colour + 1
-				redraw_game()
-			end
-		elseif action == prev_action then
-			if selected_colour > 1 then
-				selected_colour = selected_colour - 1
-				redraw_game()
-			end
-		elseif action == rb.actions.ACTION_KBD_ABORT then 
-			app_menu()
+	--Don't run if we're running as a library
+	if as_library == nil then
+		game_state = load_game(SAVE_FILE)
+		if game_state then
+			init_display_variables(game_state["difficulty"])
+		else
+			game_state = init_game(DEFAULT_DIFFICULTY)
 		end
-	until action == kill_action
+		loaded_scores = load_scores(SCORES_FILE)
+		if loaded_scores then
+			highscores = loaded_scores
+		end
+		redraw_game(game_state, highscores)
+
+		require("actions")
+		--Set the keys to use for scrolling the chooser
+		--FIXME: Remove kill_action
+		if LAYOUT == 2 then
+			prev_action = rb.actions.ACTION_KBD_LEFT
+			next_action = rb.actions.ACTION_KBD_RIGHT
+			kill_action = rb.actions.ACTION_KBD_UP
+		else
+			prev_action = rb.actions.ACTION_KBD_UP
+			next_action = rb.actions.ACTION_KBD_DOWN
+			kill_action = rb.actions.ACTION_KBD_LEFT
+		end
+
+		repeat
+			local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
+
+			if action == rb.actions.ACTION_KBD_SELECT then
+				if game_state["selected_colour"] ~= game_state["board"][1][1] then
+					fill_board(game_state["board"], game_state["selected_colour"], 
+						1, 1, game_state["board"][1][1])
+					game_state["move_number"] = game_state["move_number"] + 1
+					redraw_game(game_state, highscores)
+					if check_win(game_state["board"]) then
+						local par_diff = game_state["move_number"] - game_state["par"]
+						if not highscores[game_state["difficulty"]] or 
+							par_diff < highscores[game_state["difficulty"]] then
+
+							rb.splash(3*rb.HZ, win_text(par_diff)..", a new high score!")
+							highscores[game_state["difficulty"]] = par_diff
+							save_scores(highscores, SCORES_FILE)
+						else
+							rb.splash(3*rb.HZ, win_text(par_diff)..".")
+						end
+						os.remove(SAVE_FILE)
+						os.exit()
+					end
+				end
+			elseif action == next_action then
+				if game_state["selected_colour"] < NUM_COLOURS then
+					game_state["selected_colour"] = game_state["selected_colour"] + 1
+					redraw_game(game_state, highscores)
+				end
+			elseif action == prev_action then
+				if game_state["selected_colour"] > 1 then
+					game_state["selected_colour"] = game_state["selected_colour"] - 1
+					redraw_game(game_state, highscores)
+				end
+			elseif action == rb.actions.ACTION_KBD_ABORT then 
+				app_menu()
+			end
+		until action == kill_action
+	end
 end
