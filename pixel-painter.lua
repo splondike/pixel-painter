@@ -89,8 +89,8 @@ function calculate_par(board)
 		else
 			return moves
 		end
-		--Manual garbage collection is needed so it doesn't run out of
-		--memory
+		--Manual garbage collection is needed so it doesn't eat into the
+		--audio buffer, see http://forums.rockbox.org/index.php/topic,27120.msg177434.html
 		collectgarbage("collect")
 	until false
 end
