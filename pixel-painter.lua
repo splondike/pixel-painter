@@ -1,3 +1,8 @@
+--Number of colours used in the game
+--Hard coded here, in the COLOURS and PIP_COLOURS definitions and in
+--get_colours_count's count_table
+NUM_COLOURS = 6
+
 --Utility function makes a copy of the passed table
 function deepcopy(object)
     local lookup_table = {}
@@ -99,14 +104,14 @@ function get_colours_count(board, x, y, original_colour)
 end
 
 --Returns a randomly coloured board of the indicated dimensions
-function generate_board(board_dimension, num_colours, seed)
+function generate_board(board_dimension, seed)
 	math.randomseed(seed)
 
 	local board = {}
 	for x=1,board_dimension do
 		board[x] = {}
 		for y=1,board_dimension do
-			board[x][y] = math.random(1,num_colours)
+			board[x][y] = math.random(1,NUM_COLOURS)
 		end
 	end
 
@@ -278,7 +283,6 @@ if rb ~= nil then
 		rb.lcd_rgbpack(0, 0, 0),
 		rb.lcd_rgbpack(255, 255, 255),
 	}
-	NUM_COLOURS = table.getn(COLOURS)
 	DEFAULT_DIFFICULTY = 2 --1: Easy, 2: Normal, 3: Hard
 
 	SCORES_FILE = "/pixel-painter.score"
