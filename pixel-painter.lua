@@ -323,7 +323,7 @@ if rb ~= nil then
 		state["selected_colour"] = 1
 		state["move_number"] = 0
 		state["difficulty"] = difficulty
-		state["board"] = generate_board(board_dimension, NUM_COLOURS, rb.current_tick()+os.time())
+		state["board"] = generate_board(board_dimension, rb.current_tick()+os.time())
 		rb.splash(1, "Calculating par...") --Will stay on screen until it's done
 		state["par"] = calculate_par(state["board"])
 
