@@ -309,8 +309,9 @@ if rb ~= nil then
 	}
 	DEFAULT_DIFFICULTY = 2 --1: Easy, 2: Normal, 3: Hard
 
-	SCORES_FILE = "/pixel-painter.score"
-	SAVE_FILE = "/pixel-painter.save"
+	FILES_ROOT = "/.rockbox/rocks/games/"
+	SCORES_FILE = FILES_ROOT.."pixel-painter.score"
+	SAVE_FILE = FILES_ROOT.."pixel-painter.save"
 	r,w,TEXT_LINE_HEIGHT = rb.font_getstringsize(" ", 1) --Get font height
 	--Determine which layout to use by considering the screen dimensions
 	--the +9 is so we have space for the chooser
@@ -460,8 +461,7 @@ if rb ~= nil then
 				text_ypos = chooser_start_pos - TEXT_LINE_HEIGHT - 1
 			else
 				text_ypos = rb.LCD_HEIGHT - TEXT_LINE_HEIGHT
-			end
-
+			end 
 			space_width = rb.font_getstringsize(" ", 1)
 			local xpos = 0
 			for i = 1,table.getn(strings),2 do
@@ -476,7 +476,7 @@ if rb ~= nil then
 	end
 
 	--Convenience function to redraw the whole board to screen
-	function redraw_game(game_state)
+	function redraw_game(game_state, highscores)
 		rb.lcd_clear_display()
 		draw_board(game_state["board"])
 		draw_chooser(game_state["selected_colour"])
@@ -572,11 +572,11 @@ The bottom right displays the number of moves taken, the number of moves used by
 		local item = rb.do_menu("Pixel painter menu", options, nil, false)
 
 		if item == 0 then
-			redraw_game(game_state)
+			redraw_game(game_state, highscores)
 		elseif item == 1 then
 			os.remove(SAVE_FILE)
 			game_state = init_game(game_state["difficulty"])
-			redraw_game(game_state)
+			redraw_game(game_state, highscores)
 		elseif item == 2 then
 			local diff = rb.do_menu("Difficulty", {"Easy", "Medium", "Hard"}, game_state["difficulty"] - 1, false)
 			if diff < 0 then
@@ -585,11 +585,11 @@ The bottom right displays the number of moves taken, the number of moves used by
 				local difficulty = diff + 1 --lua is 1 indexed
 				os.remove(SAVE_FILE)
 				game_state = init_game(difficulty)
-				redraw_game(game_state)
+				redraw_game(game_state, highscores)
 			end
 		elseif item == 3 then
 			app_help()
-			redraw_game(game_state)
+			redraw_game(game_state, highscores)
 		elseif item == 4 then
 			os.remove(SAVE_FILE)
 			os.exit()		
