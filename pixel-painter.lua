@@ -472,44 +472,73 @@ if rb ~= nil then
 		local space_width = rb.font_getstringsize(" ", 1)
 
 		--Draw title
-		rb.lcd_putsxy(title_xpos, 0, title)
-		rb.lcd_hline(title_xpos, title_xpos + title_width, TEXT_LINE_HEIGHT)
+		function draw_text(y_offset)
+			rb.lcd_set_foreground(rb.lcd_rgbpack(255,0,0))
+			rb.lcd_putsxy(title_xpos, y_offset, title)
+			rb.lcd_hline(title_xpos, title_xpos + title_width, TEXT_LINE_HEIGHT + y_offset)
+			rb.lcd_set_foreground(rb.lcd_rgbpack(255,255,255))
 
-		local body_text = [[
-	The aim is to fill the screen with a single colour. Each move you select a new colour which is then filled in from the top left corner.
+			local body_text = [[
+The aim is to fill the screen with a single colour. Each move you select a new colour which is then filled in from the top left corner.
 
-	The bottom right displays the number of moves taken, the number of moves used by the computer and your best score relative to the computer's.
-	]]
-		local body_len = string.len(body_text)
+The bottom right displays the number of moves taken, the number of moves used by the computer and your best score relative to the computer's.
+		]]
+			local body_len = string.len(body_text)
 
-		--Draw body text
-		local word_buffer = ""
-		local xpos = 0
-		local ypos = TEXT_LINE_HEIGHT * 2 
-		for i=1,body_len do
-			local c = string.sub(body_text, i, i)
-			if c == " " or c == "\n" then
-				local word_length = rb.font_getstringsize(word_buffer, 1)
-				if (xpos + word_length) > rb.LCD_WIDTH then
-					xpos = 0
-					ypos = ypos + TEXT_LINE_HEIGHT
-				end
-				rb.lcd_putsxy(xpos, ypos, word_buffer)
+			--Draw body text
+			local word_buffer = ""
+			local xpos = 0
+			local ypos = TEXT_LINE_HEIGHT * 2 
+			for i=1,body_len do
+				local c = string.sub(body_text, i, i)
+				if c == " " or c == "\n" then
+					local word_length = rb.font_getstringsize(word_buffer, 1)
+					if (xpos + word_length) > rb.LCD_WIDTH then
+						xpos = 0
+						ypos = ypos + TEXT_LINE_HEIGHT
+					end
+					rb.lcd_putsxy(xpos, ypos + y_offset, word_buffer)
 
-				word_buffer = ""
-				if c == "\n" then
-					xpos = 0
-					ypos = ypos + TEXT_LINE_HEIGHT
+					word_buffer = ""
+					if c == "\n" then
+						xpos = 0
+						ypos = ypos + TEXT_LINE_HEIGHT
+					else
+						xpos = xpos + word_length + space_width
+					end
 				else
-					xpos = xpos + word_length + space_width
+					word_buffer = word_buffer .. c
 				end
-			else
-				word_buffer = word_buffer .. c
 			end
+
+			rb.lcd_update()
+
+			return ypos
 		end
 
-		rb.lcd_update()
-		local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
+		--Deal with scrolling the help
+		local y_offset = 0
+		local max_y_offset = math.max(draw_text(y_offset) - rb.LCD_HEIGHT, 0)
+		local exit = false
+		repeat
+			local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
+			if action == rb.actions.ACTION_KBD_DOWN then
+				y_offset = math.max(-max_y_offset, y_offset - TEXT_LINE_HEIGHT)
+			elseif action == rb.actions.ACTION_KBD_UP then
+				y_offset = math.min(0, y_offset + TEXT_LINE_HEIGHT)
+			elseif action == rb.actions.ACTION_KBD_LEFT or 
+				action == rb.actions.ACTION_KBD_RIGHT or 
+				action == rb.actions.ACTION_KBD_SELECT or 
+				action == rb.actions.ACTION_KBD_ABORT then
+				--This explicit enumeration is needed for targets like
+				--the iriver which send more than one action when
+				--scrolling
+
+				exit = true
+			end
+			rb.lcd_clear_display()
+			draw_text(y_offset)
+		until exit == true
 	end
 
 	--Draws the application menu and handles its logic
