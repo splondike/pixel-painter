@@ -649,23 +649,28 @@ The bottom right displays the number of moves taken, the number of moves used by
 
 			if action == rb.actions.ACTION_KBD_SELECT then
 				if game_state["selected_colour"] ~= game_state["board"][1][1] then
-					fill_board(game_state["board"], game_state["selected_colour"], 
-						1, 1, game_state["board"][1][1])
-					game_state["move_number"] = game_state["move_number"] + 1
-					redraw_game(game_state, highscores)
-					if check_win(game_state["board"]) then
-						local par_diff = game_state["move_number"] - game_state["par"]
-						if not highscores[game_state["difficulty"]] or 
-							par_diff < highscores[game_state["difficulty"]] then
+					local board_copy = deepcopy(game_state["board"])
+					local colours_count = get_colours_count(board_copy, 1, 1, board_copy[1][1])
 
-							rb.splash(3*rb.HZ, win_text(par_diff)..", a new high score!")
-							highscores[game_state["difficulty"]] = par_diff
-							save_scores(highscores, SCORES_FILE)
-						else
-							rb.splash(3*rb.HZ, win_text(par_diff)..".")
+					if colours_count[game_state["selected_colour"]] > 0 then
+						fill_board(game_state["board"], game_state["selected_colour"], 
+							1, 1, game_state["board"][1][1])
+						game_state["move_number"] = game_state["move_number"] + 1
+						redraw_game(game_state, highscores)
+						if check_win(game_state["board"]) then
+							local par_diff = game_state["move_number"] - game_state["par"]
+							if not highscores[game_state["difficulty"]] or 
+								par_diff < highscores[game_state["difficulty"]] then
+
+								rb.splash(3*rb.HZ, win_text(par_diff)..", a new high score!")
+								highscores[game_state["difficulty"]] = par_diff
+								save_scores(highscores, SCORES_FILE)
+							else
+								rb.splash(3*rb.HZ, win_text(par_diff)..".")
+							end
+							os.remove(SAVE_FILE)
+							os.exit()
 						end
-						os.remove(SAVE_FILE)
-						os.exit()
 					end
 				end
 			elseif action == next_action then
