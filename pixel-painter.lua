@@ -648,30 +648,33 @@ The bottom right displays the number of moves taken, the number of moves used by
 			local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
 
 			if action == rb.actions.ACTION_KBD_SELECT then
-				if game_state["selected_colour"] ~= game_state["board"][1][1] then
-					local board_copy = deepcopy(game_state["board"])
-					local colours_count = get_colours_count(board_copy, 1, 1, board_copy[1][1])
+				--Check if the move will actually change the board
+				local board_copy = deepcopy(game_state["board"])
+				local colours_count = get_colours_count(board_copy, 1, 1, board_copy[1][1])
 
-					if colours_count[game_state["selected_colour"]] > 0 then
-						fill_board(game_state["board"], game_state["selected_colour"], 
-							1, 1, game_state["board"][1][1])
-						game_state["move_number"] = game_state["move_number"] + 1
-						redraw_game(game_state, highscores)
-						if check_win(game_state["board"]) then
-							local par_diff = game_state["move_number"] - game_state["par"]
-							if not highscores[game_state["difficulty"]] or 
-								par_diff < highscores[game_state["difficulty"]] then
+				if colours_count[game_state["selected_colour"]] > 0 then
+					fill_board(game_state["board"], game_state["selected_colour"], 
+						1, 1, game_state["board"][1][1])
+					game_state["move_number"] = game_state["move_number"] + 1
+					redraw_game(game_state, highscores)
 
-								rb.splash(3*rb.HZ, win_text(par_diff)..", a new high score!")
-								highscores[game_state["difficulty"]] = par_diff
-								save_scores(highscores, SCORES_FILE)
-							else
-								rb.splash(3*rb.HZ, win_text(par_diff)..".")
-							end
-							os.remove(SAVE_FILE)
-							os.exit()
+					if check_win(game_state["board"]) then
+						local par_diff = game_state["move_number"] - game_state["par"]
+						if not highscores[game_state["difficulty"]] or 
+							par_diff < highscores[game_state["difficulty"]] then
+							--
+							rb.splash(3*rb.HZ, win_text(par_diff)..", a new high score!")
+							highscores[game_state["difficulty"]] = par_diff
+							save_scores(highscores, SCORES_FILE)
+						else
+							rb.splash(3*rb.HZ, win_text(par_diff)..".")
 						end
+						os.remove(SAVE_FILE)
+						os.exit()
 					end
+				else
+					--Will stay on screen until they move
+					rb.splash(1, "Invalid move (wouldn't change board)")
 				end
 			elseif action == next_action then
 				if game_state["selected_colour"] < NUM_COLOURS then
