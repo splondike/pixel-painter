@@ -279,7 +279,7 @@ if rb ~= nil then
 		rb.lcd_rgbpack(255, 255, 255),
 	}
 	NUM_COLOURS = table.getn(COLOURS)
-	DEFAULT_DIFFICULTY = 1 --1: Easy, 2: Normal, 3: Hard
+	DEFAULT_DIFFICULTY = 2 --1: Easy, 2: Normal, 3: Hard
 
 	SCORES_FILE = "/pixel-painter.score"
 	SAVE_FILE = "/pixel-painter.save"
