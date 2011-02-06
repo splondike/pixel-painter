@@ -616,8 +616,10 @@ The bottom right displays the number of moves taken, the number of moves used by
 	--Game main loop--
 	------------------
 
-	--Don't run if we're running as a library
-	if as_library == nil then
+	--Gives the option of testing things without running the game, use:
+	--as_library=true
+	--dofile('pixel-painter.lua')
+	if not as_library then
 		game_state = load_game(SAVE_FILE)
 		if game_state then
 			init_display_variables(game_state["difficulty"])
@@ -632,15 +634,14 @@ The bottom right displays the number of moves taken, the number of moves used by
 
 		require("actions")
 		--Set the keys to use for scrolling the chooser
-		--FIXME: Remove kill_action
 		if LAYOUT == 2 then
 			prev_action = rb.actions.ACTION_KBD_LEFT
 			next_action = rb.actions.ACTION_KBD_RIGHT
-			kill_action = rb.actions.ACTION_KBD_UP
+			safe_exit_action = rb.actions.ACTION_KBD_UP
 		else
 			prev_action = rb.actions.ACTION_KBD_UP
 			next_action = rb.actions.ACTION_KBD_DOWN
-			kill_action = rb.actions.ACTION_KBD_LEFT
+			safe_exit_action = rb.actions.ACTION_KBD_LEFT
 		end
 
 		repeat
@@ -680,6 +681,10 @@ The bottom right displays the number of moves taken, the number of moves used by
 			elseif action == rb.actions.ACTION_KBD_ABORT then 
 				app_menu()
 			end
-		until action == kill_action
+		until action == safe_exit_action
+
+		--This is executed if the user presses safe_exit_action
+		rb.splash(1, "Saving game...") --Will stay on screen till the app exits
+		save_game(game_state,SAVE_FILE)
 	end
 end
