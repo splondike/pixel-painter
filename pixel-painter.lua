@@ -674,7 +674,7 @@ The bottom right displays the number of moves taken, the number of moves used by
 					end
 				else
 					--Will stay on screen until they move
-					rb.splash(1, "Invalid move (wouldn't change board)")
+					rb.splash(1, "Invalid move (wouldn't change board). Change colour to continue.")
 				end
 			elseif action == next_action then
 				if game_state["selected_colour"] < NUM_COLOURS then
