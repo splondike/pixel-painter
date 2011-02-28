@@ -634,15 +634,9 @@ The bottom right displays the number of moves taken, the number of moves used by
 
 		require("actions")
 		--Set the keys to use for scrolling the chooser
-		if LAYOUT == 2 then
-			prev_action = rb.actions.ACTION_KBD_LEFT
-			next_action = rb.actions.ACTION_KBD_RIGHT
-			safe_exit_action = rb.actions.ACTION_KBD_UP
-		else
-			prev_action = rb.actions.ACTION_KBD_UP
-			next_action = rb.actions.ACTION_KBD_DOWN
-			safe_exit_action = rb.actions.ACTION_KBD_LEFT
-		end
+		prev_action = rb.actions.ACTION_KBD_UP
+		next_action = rb.actions.ACTION_KBD_DOWN
+		safe_exit_action = rb.actions.ACTION_KBD_LEFT
 
 		repeat
 			local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
