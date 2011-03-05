@@ -1,5 +1,5 @@
 as_library = true
-dofile("pixel-painter.lua")
+dofile("../pixel-painter.lua")
 
 collectgarbage("stop")
 test_board = load_game("stopper-pixel-painter.save")["board"]
