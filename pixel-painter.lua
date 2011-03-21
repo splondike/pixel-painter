@@ -69,60 +69,56 @@ function calculate_par(board)
 	local moves = 0
 
 	repeat
-		local colours_count = get_colours_count(test_game_copy, 1, 1, test_game_copy[1][1])
-		local max_count, colour = table_maximum(colours_count)
+		local non_matching = {}
+		fill_board(test_game_copy, 0, 1, 1, test_game_copy[1][1], non_matching)
 
-		if max_count > 0 then
+		if table.getn(non_matching) > 0 then
+			local count_table = get_colours_count(test_game_copy, non_matching)
+			local max_value, colour = table_maximum(count_table)
+
 			--Corrects the invalid colour values set by
 			--get_colours_count, this also acts as a move
 			for x=1,board_dimension do
 				for y=1,board_dimension do
 					if test_game_copy[x][y] < 0 then
-						test_game_copy[x][y] = test_game_copy[x][y] * -1
+					test_game_copy[x][y] = test_game_copy[x][y] * -1
 					elseif test_game_copy[x][y] == 0 then
-						test_game_copy[x][y] = colour
+					test_game_copy[x][y] = colour
 					end
 				end
 			end
-
-			moves = moves + 1
 		else
 			return moves
 		end
 		--Manual garbage collection is needed so it doesn't eat into the
 		--audio buffer, see http://forums.rockbox.org/index.php/topic,27120.msg177434.html
-		collectgarbage("collect")
+		--collectgarbage("collect")
+		moves = moves + 1
 	until false
 end
 
 --Calculates the number of blocks of each colour adjacent to the filled
 --region identified by the passed parameters. A colour indexed table
---containing the counts is returned.
+--containing the counts is returned. Relies on the board having been
+--flood filled with 0s prior to executing this function.
 --
 --The 'board' table is also adjusted as follows: The filled region's
 --colour index is set to zero and each of the adjacent areas' colour
 --indexes are multiplied by -1. These invalid colour values are later
 --corrected in the calculate_par function.
-function get_colours_count(board, x, y, original_colour)
-	local board_dimension = table.getn(board)
+function get_colours_count(board, non_matching)
 	local count_table = {0, 0, 0, 0, 0, 0}
-
-	if x > 0 and y > 0 and x <= board_dimension and y <= board_dimension then
-		if board[x][y] == original_colour then
-			board[x][y] = 0
-
-			local r1 = get_colours_count(board, x - 1, y, original_colour)
-			local r2 = get_colours_count(board, x, y - 1, original_colour)
-			local r3 = get_colours_count(board, x + 1, y, original_colour)
-			local r4 = get_colours_count(board, x, y + 1, original_colour)
-			for i=1,NUM_COLOURS do
-				count_table[i] = r1[i] + r2[i] + r3[i] + r4[i]
-			end
-		elseif board[x][y] > 0 then
-			local c = board[x][y]
-			count_table[c] = fill_board(board, -1 * c, x, y, c)
+	repeat
+		--Pop the array
+		local current = non_matching[table.getn(non_matching)]
+		table.remove(non_matching)
+		--Check this square hasn't already been filled
+		local curr_colour = board[current[1]][current[2]]
+		if curr_colour > 0 then
+			count_table[curr_colour] = count_table[curr_colour] + 
+				fill_board(board, curr_colour * -1, current[1], current[2], curr_colour)
 		end
-	end
+	until table.getn(non_matching) == 0
 
 	return count_table
 end
@@ -144,16 +140,18 @@ end
 
 --Flood fills the board from the top left using selected_colour
 --Returns the number of boxes filled
-function fill_board(board, fill_colour, x, y, original_colour)
+function fill_board(board, fill_colour, x, y, original_colour, non_matching)
 	local board_dimension = table.getn(board)
-	if x > 0 and y > 0 and x <= board_dimension and 
-		y <= board_dimension and board[x][y] == original_colour then
-
-		board[x][y] = fill_colour
-		return fill_board(board, fill_colour, x - 1, y, original_colour) + 
-		       fill_board(board, fill_colour, x, y - 1, original_colour) +
-		       fill_board(board, fill_colour, x + 1, y, original_colour) +
-		       fill_board(board, fill_colour, x, y + 1, original_colour) + 1
+	if x > 0 and y > 0 and x <= board_dimension and y <= board_dimension then
+		if board[x][y] == original_colour then
+			board[x][y] = fill_colour
+			return fill_board(board, fill_colour, x - 1, y, original_colour, non_matching) + 
+				   fill_board(board, fill_colour, x, y - 1, original_colour, non_matching) +
+				   fill_board(board, fill_colour, x + 1, y, original_colour, non_matching) +
+				   fill_board(board, fill_colour, x, y + 1, original_colour, non_matching) + 1
+		elseif(non_matching ~= nil and board[x][y] ~= fill_colour) then
+			table.insert(non_matching, {x,y})
+		end
 	end
 
 	return 0
