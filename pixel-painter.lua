@@ -640,11 +640,10 @@ The bottom right displays the number of moves taken, the number of moves used by
 			local action = rb.get_action(rb.contexts.CONTEXT_KEYBOARD, -1)
 
 			if action == rb.actions.ACTION_KBD_SELECT then
-				--Check if the move will actually change the board
-				local board_copy = deepcopy(game_state["board"])
-				local colours_count = get_colours_count(board_copy, 1, 1, board_copy[1][1])
+				--Ensure the user has changed the colour before allowing move
+				--TODO: Check that the move would change the board
 
-				if colours_count[game_state["selected_colour"]] > 0 then
+				if game_state["selected_colour"] ~= game_state["board"][1][1] then
 					fill_board(game_state["board"], game_state["selected_colour"], 
 						1, 1, game_state["board"][1][1])
 					game_state["move_number"] = game_state["move_number"] + 1
