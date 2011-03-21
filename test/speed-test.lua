@@ -1,7 +1,7 @@
 as_library = true
 dofile("/pixel-painter.lua")
 
-game = load_game("/speed-test.save")
+game = load_game("/data/speed-test.save")
 if not game then
 	rb.splash(rb.HZ * 5, "Please ensure pixel-painter-test.save exists in the root directory with pixel-painter.lua and speed-test.lua.")
 	os.exit()
