@@ -569,13 +569,13 @@ The bottom right displays the number of moves taken, the number of moves used by
 			"Help", "Quit without saving", "Quit"}
 		local item = rb.do_menu("Pixel painter menu", options, nil, false)
 
-		if item == 0 then
+		if item == 0 then --Resume game
 			redraw_game(game_state, highscores)
-		elseif item == 1 then
+		elseif item == 1 then --Start new game
 			os.remove(SAVE_FILE)
 			game_state = init_game(game_state["difficulty"])
 			redraw_game(game_state, highscores)
-		elseif item == 2 then
+		elseif item == 2 then --Change difficulty
 			local diff = rb.do_menu("Difficulty", {"Easy", "Medium", "Hard"}, game_state["difficulty"] - 1, false)
 			if diff < 0 then
 				app_menu()
@@ -585,13 +585,13 @@ The bottom right displays the number of moves taken, the number of moves used by
 				game_state = init_game(difficulty)
 				redraw_game(game_state, highscores)
 			end
-		elseif item == 3 then
+		elseif item == 3 then --Help
 			app_help()
 			redraw_game(game_state, highscores)
-		elseif item == 4 then
+		elseif item == 4 then --Quit without saving
 			os.remove(SAVE_FILE)
 			os.exit()		
-		elseif item == 5 then
+		elseif item == 5 then --Quit
 			rb.splash(1, "Saving game...") --Will stay on screen till the app exits
 			save_game(game_state,SAVE_FILE)
 			os.exit()
