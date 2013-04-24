@@ -1,17 +1,3 @@
-as_library = true
-dofile("../pixel-painter.lua")
-
-local function print_board(board)
-  output = ""
-  for k,v in pairs(board) do
-    for k1,v1 in pairs(v) do
-      output = output .. v1 .. " "
-    end
-    output = output .. "\n"
-  end
-  print(output)
-end
-
 -- Turns the board's 2d matrix representation
 -- into a node collection
 function board_to_nodes(board)
@@ -50,37 +36,122 @@ function board_to_nodes(board)
   return {connections = connections_map, colors = node_colors}
 end
 
+function combine_nodes(node_info, node1, node2)
+  local function remove_from_set(list, number)
+    local new_value = {}
+    for _,v in pairs(list) do
+      if v ~= number then
+        table.insert(new_value, v)
+      end
+    end
+
+    return new_value
+  end
+  local function add_to_set(list, number)
+    local new_value = remove_from_set(list, number)
+    table.insert(new_value, number)
+
+    return new_value
+  end
+
+  assert (node1 ~= node2)
+  local small, large = math.min(node1, node2), math.max(node1, node2)
+
+  for _, other_node in pairs(node_info.connections[large]) do
+    if other_node ~= small then
+      -- Point the larger nodes connections to the smaller node
+      local upd_other = remove_from_set(node_info.connections[other_node], large)
+      upd_other = add_to_set(upd_other, small)
+      node_info.connections[other_node] = upd_other
+
+      -- Combine the sets of connections into the smaller node
+      local upd_small = add_to_set(node_info.connections[small], other_node)
+      node_info.connections[small] = upd_small
+    end
+  end
+  -- Remove the reference to the larger node from the small
+  node_info.connections[small] = remove_from_set(node_info.connections[small], large)
+  -- Delete the larger node's info
+  -- TODO: Work out a nice way of doing this, if it's even necessary
+  -- to speed up the works
+  node_info.colors[large] = nil
+  node_info.connections[large] = nil
+  --node_info.colors = compact_table(node_info.colors)
+  --node_info.connections = compact_table(node_info.connections)
+end
+
 -- Simplifies a node collection by combining adjacent nodes of the same
 -- color
+-- NOTE: Mutates the passed in table (saves memory)
+--
+-- @return the number of nodes simplified
 function simplify_nodes(node_info)
-  local simplified_node_info = {connections = {}, colors = {}}
+  -- Keep a separate copy of the nodes to iterate over while
+  -- we're mutating the table
+  local keys = {}
+  local n = 0
+  for key,value in pairs(node_info.connections) do
+    n = n + 1 -- Faster than table.insert
+    keys[n] = key
+  end
+  -- It's important we iterate in ascending order
+  table.sort(keys)
 
-  -- TODO: Check pairs() goes from lowest to highest, otherwise problems
-  -- with combining toward the lowest group number and skipping merged nodes
-  for curr_node, connected_nodes in pairs(node_info.connections) do
-    local curr_color = node_info.colors[curr_node]
-    -- Skip here if already combined
+  local combined_nodes = {}
+  for _, curr_node in ipairs(keys) do
+    if combined_nodes[curr_node] == nil then
+      local curr_color = node_info.colors[curr_node]
 
-    simplified_node_info.connections[curr_node] = {}
-    for _, connected_node in pairs(connected_nodes) do
-      if node_info.colors[connected_node] == curr_color then
-        local other_connections = node_info.connections[connected_node]
-
-      else
-        table.insert(simplified_node_info.connections[curr_node], connected_node)
+      for _, connected_node in pairs(node_info.connections[curr_node]) do
+        if node_info.colors[connected_node] == curr_color then
+          print(curr_node, connected_node)
+          print_thing(node_info)
+          combine_nodes(node_info, curr_node, connected_node)
+          combined_nodes[connected_node] = true
+          -- This is wrong, curr could have been combined into connected
+        end
       end
     end
   end
 
-  return simplified_node_info
+  return table.getn(combined_nodes)
+end
+
+function compact_table(table)
+  local rtn = {}
+  for k,v in pairs(table) do
+    if v ~= nil then
+      rtn[k] = v
+    end
+  end
+
+  return rtn
 end
 
 function get_connections(board)
-  unsimplified_node_info = board_to_nodes(board)
+  node_info = board_to_nodes(board)
+  fully_simplified = false
+  while not fully_simplified do
+    print_thing(node_info)
+    num_simplified = simplify_nodes(node_info)
+    fully_simplified = num_simplified == 0
+  end
+
+  return node_info
+end
+
+function print_thing(a)
+  for k,v in pairs(a.connections) do
+    local row = k .. ": {"
+    for _,itm in pairs(v) do
+      row = row .. itm .. ", "
+    end
+    print(row.."}")
+  end
 end
 
 test_board = {
-  {1, 2, 3, 1, 1, 1},
+  {1, 2, 1, 1, 1, 1},
   {1, 2, 1, 2, 2, 1},
   {1, 2, 1, 2, 2, 1},
   {1, 2, 1, 1, 2, 1},
@@ -89,22 +160,3 @@ test_board = {
 }
 
 a = get_connections(test_board)
-
---TODO: Even better... Instead of making groups map, and then the connections list
--- make something like this:
--- 1 -> {2, 3, 4}
--- 2 -> {1, 3}
--- 3 -> {1, 2}
--- 4 -> {1, 5}
--- 5 -> {4}
--- Then check, if 5 is the same color as 2, the map becomes:
--- 1 -> {2, 3, 4}
--- 2 -> {1, 3, 4}
--- 3 -> {1, 2}
--- 4 -> {1, 2}
--- This reduction strategy will be essential later for the tree searching algorithm
---
--- Thought: Maybe don't even bother including the smaller number in the bigger's list
--- the lookup strategy could be to search for the smaller number's thing. No, don't do
--- this, it will make merging 5 into 2 harder, since I'll need to scan all smaller
--- numbers to rejoin 5 correctly
