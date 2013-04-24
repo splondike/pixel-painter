@@ -72,12 +72,8 @@ function combine_nodes(node_info, node1, node2)
   -- Remove the reference to the larger node from the small
   node_info.connections[small] = remove_from_set(node_info.connections[small], large)
   -- Delete the larger node's info
-  -- TODO: Work out a nice way of doing this, if it's even necessary
-  -- to speed up the works
   node_info.colors[large] = nil
   node_info.connections[large] = nil
-  --node_info.colors = compact_table(node_info.colors)
-  --node_info.connections = compact_table(node_info.connections)
 end
 
 -- Simplifies a node collection by combining adjacent nodes of the same
@@ -94,27 +90,29 @@ function simplify_nodes(node_info)
     n = n + 1 -- Faster than table.insert
     keys[n] = key
   end
-  -- It's important we iterate in ascending order
-  table.sort(keys)
 
-  local combined_nodes = {}
+  -- TODO: Turn this into an iterator, it would cut down on the
+  -- checking and total amount of code
+  local combined_nodes_count = 0
   for _, curr_node in ipairs(keys) do
-    if combined_nodes[curr_node] == nil then
-      local curr_color = node_info.colors[curr_node]
+    local curr_color = node_info.colors[curr_node]
+    local connections = node_info.connections[curr_node] or {}
 
-      for _, connected_node in pairs(node_info.connections[curr_node]) do
-        if node_info.colors[connected_node] == curr_color then
-          print(curr_node, connected_node)
-          print_thing(node_info)
-          combine_nodes(node_info, curr_node, connected_node)
-          combined_nodes[connected_node] = true
-          -- This is wrong, curr could have been combined into connected
+    for _, connected_node in pairs(connections) do
+      if node_info.colors[connected_node] == curr_color then
+        combine_nodes(node_info, curr_node, connected_node)
+
+        -- curr_node may have been combined
+        if node_info.connections[curr_node] == nil then
+          break
         end
+
+        combined_nodes_count = combined_nodes_count + 1
       end
     end
   end
 
-  return table.getn(combined_nodes)
+  return combined_nodes_count
 end
 
 function compact_table(table)
@@ -132,7 +130,6 @@ function get_connections(board)
   node_info = board_to_nodes(board)
   fully_simplified = false
   while not fully_simplified do
-    print_thing(node_info)
     num_simplified = simplify_nodes(node_info)
     fully_simplified = num_simplified == 0
   end
@@ -160,3 +157,4 @@ test_board = {
 }
 
 a = get_connections(test_board)
+print_thing(a)
