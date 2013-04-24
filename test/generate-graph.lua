@@ -82,48 +82,36 @@ end
 --
 -- @return the number of nodes simplified
 function simplify_nodes(node_info)
-  -- Keep a separate copy of the nodes to iterate over while
-  -- we're mutating the table
-  local keys = {}
-  local n = 0
-  for key,value in pairs(node_info.connections) do
-    n = n + 1 -- Faster than table.insert
-    keys[n] = key
+  local ind_key, val_key = nil, nil
+  local ind_con, val_con = nil, nil
+  local function iter()
+    if ind_con == nil then
+      ind_key, val_key = next(node_info.connections, ind_key)
+      if ind_key == nil then
+        return nil
+      end
+    end
+
+    -- If we've been merged
+    if node_info.connections[ind_key] == nil then
+      ind_con, val_con = nil, nil
+      return iter()
+    end
+
+    ind_con, val_con = next(node_info.connections[ind_key], ind_con)
+
+    return ind_key, val_con
   end
 
-  -- TODO: Turn this into an iterator, it would cut down on the
-  -- checking and total amount of code
   local combined_nodes_count = 0
-  for _, curr_node in ipairs(keys) do
-    local curr_color = node_info.colors[curr_node]
-    local connections = node_info.connections[curr_node] or {}
-
-    for _, connected_node in pairs(connections) do
-      if node_info.colors[connected_node] == curr_color then
-        combine_nodes(node_info, curr_node, connected_node)
-
-        -- curr_node may have been combined
-        if node_info.connections[curr_node] == nil then
-          break
-        end
-
-        combined_nodes_count = combined_nodes_count + 1
-      end
+  for node1, node2 in iter do
+    if node_info.colors[node1] == node_info.colors[node2] then
+      combine_nodes(node_info, node1, node2)
+      combined_nodes_count = combined_nodes_count + 1
     end
   end
 
   return combined_nodes_count
-end
-
-function compact_table(table)
-  local rtn = {}
-  for k,v in pairs(table) do
-    if v ~= nil then
-      rtn[k] = v
-    end
-  end
-
-  return rtn
 end
 
 function get_connections(board)
