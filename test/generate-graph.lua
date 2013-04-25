@@ -20,14 +20,14 @@ function board_to_nodes(board)
 
       if x < board_dim then
         local other_node_id = xy_to_flat(x + 1, y)
-        table.insert(connections_map[curr_node_id], other_node_id)
-        table.insert(connections_map[other_node_id], curr_node_id)
+        connections_map[curr_node_id][other_node_id] = true
+        connections_map[other_node_id][curr_node_id] = true
         node_colors[other_node_id] = board[y][x + 1]
       end
       if y < board_dim then
         local other_node_id = xy_to_flat(x, y + 1)
-        table.insert(connections_map[curr_node_id], other_node_id)
-        table.insert(connections_map[other_node_id], curr_node_id)
+        connections_map[curr_node_id][other_node_id] = true
+        connections_map[other_node_id][curr_node_id] = true
         node_colors[other_node_id] = board[y + 1][x]
       end
     end
@@ -37,40 +37,21 @@ function board_to_nodes(board)
 end
 
 function combine_nodes(graph, node1, node2)
-  local function remove_from_set(list, number)
-    local new_value = {}
-    for _,v in pairs(list) do
-      if v ~= number then
-        table.insert(new_value, v)
-      end
-    end
-
-    return new_value
-  end
-  local function add_to_set(list, number)
-    local new_value = remove_from_set(list, number)
-    table.insert(new_value, number)
-
-    return new_value
-  end
-
   assert (node1 ~= node2)
   local small, large = math.min(node1, node2), math.max(node1, node2)
 
-  for _, other_node in pairs(graph.connections[large]) do
+  for other_node in pairs(graph.connections[large]) do
     if other_node ~= small then
       -- Point the larger nodes connections to the smaller node
-      local upd_other = remove_from_set(graph.connections[other_node], large)
-      upd_other = add_to_set(upd_other, small)
-      graph.connections[other_node] = upd_other
+      graph.connections[other_node][large] = nil
+      graph.connections[other_node][small] = true
 
       -- Combine the sets of connections into the smaller node
-      local upd_small = add_to_set(graph.connections[small], other_node)
-      graph.connections[small] = upd_small
+      graph.connections[small][other_node] = true
     end
   end
   -- Remove the reference to the larger node from the small
-  graph.connections[small] = remove_from_set(graph.connections[small], large)
+  graph.connections[small][large] = nil
   -- Delete the larger node's info
   graph.colors[large] = nil
   graph.connections[large] = nil
@@ -82,10 +63,9 @@ end
 --
 -- @return the number of nodes simplified
 function simplify_nodes(graph)
-  local key_group_number = nil
-  local ind_con, con_group_number = nil, nil
+  local key_group_number, con_group_number = nil, nil
   local function iter()
-    if ind_con == nil then
+    if con_group_number == nil then
       key_group_number = next(graph.connections, key_group_number)
       if key_group_number == nil then
         return nil
@@ -94,11 +74,11 @@ function simplify_nodes(graph)
 
     -- If we've been merged
     if graph.connections[key_group_number] == nil then
-      ind_con, con_group_number = nil, nil
+      con_group_number = nil
       return iter()
     end
 
-    ind_con, con_group_number = next(graph.connections[key_group_number], ind_con)
+    con_group_number = next(graph.connections[key_group_number], con_group_number)
 
     return key_group_number, con_group_number
   end
@@ -114,6 +94,7 @@ function simplify_nodes(graph)
   return combined_nodes_count
 end
 
+-- Returns a graph object representation of the given board
 function get_connections(board)
   graph = board_to_nodes(board)
   fully_simplified = false
@@ -128,7 +109,7 @@ end
 function print_thing(a)
   for k,v in pairs(a.connections) do
     local row = k .. ": {"
-    for _,itm in pairs(v) do
+    for itm in pairs(v) do
       row = row .. itm .. ", "
     end
     print(row.."}")
