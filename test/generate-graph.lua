@@ -36,7 +36,7 @@ function board_to_nodes(board)
   return {connections = connections_map, colors = node_colors}
 end
 
-function combine_nodes(node_info, node1, node2)
+function combine_nodes(graph, node1, node2)
   local function remove_from_set(list, number)
     local new_value = {}
     for _,v in pairs(list) do
@@ -57,23 +57,23 @@ function combine_nodes(node_info, node1, node2)
   assert (node1 ~= node2)
   local small, large = math.min(node1, node2), math.max(node1, node2)
 
-  for _, other_node in pairs(node_info.connections[large]) do
+  for _, other_node in pairs(graph.connections[large]) do
     if other_node ~= small then
       -- Point the larger nodes connections to the smaller node
-      local upd_other = remove_from_set(node_info.connections[other_node], large)
+      local upd_other = remove_from_set(graph.connections[other_node], large)
       upd_other = add_to_set(upd_other, small)
-      node_info.connections[other_node] = upd_other
+      graph.connections[other_node] = upd_other
 
       -- Combine the sets of connections into the smaller node
-      local upd_small = add_to_set(node_info.connections[small], other_node)
-      node_info.connections[small] = upd_small
+      local upd_small = add_to_set(graph.connections[small], other_node)
+      graph.connections[small] = upd_small
     end
   end
   -- Remove the reference to the larger node from the small
-  node_info.connections[small] = remove_from_set(node_info.connections[small], large)
+  graph.connections[small] = remove_from_set(graph.connections[small], large)
   -- Delete the larger node's info
-  node_info.colors[large] = nil
-  node_info.connections[large] = nil
+  graph.colors[large] = nil
+  graph.connections[large] = nil
 end
 
 -- Simplifies a node collection by combining adjacent nodes of the same
@@ -81,32 +81,32 @@ end
 -- NOTE: Mutates the passed in table (saves memory)
 --
 -- @return the number of nodes simplified
-function simplify_nodes(node_info)
-  local ind_key, val_key = nil, nil
-  local ind_con, val_con = nil, nil
+function simplify_nodes(graph)
+  local key_group_number = nil
+  local ind_con, con_group_number = nil, nil
   local function iter()
     if ind_con == nil then
-      ind_key, val_key = next(node_info.connections, ind_key)
-      if ind_key == nil then
+      key_group_number = next(graph.connections, key_group_number)
+      if key_group_number == nil then
         return nil
       end
     end
 
     -- If we've been merged
-    if node_info.connections[ind_key] == nil then
-      ind_con, val_con = nil, nil
+    if graph.connections[key_group_number] == nil then
+      ind_con, con_group_number = nil, nil
       return iter()
     end
 
-    ind_con, val_con = next(node_info.connections[ind_key], ind_con)
+    ind_con, con_group_number = next(graph.connections[key_group_number], ind_con)
 
-    return ind_key, val_con
+    return key_group_number, con_group_number
   end
 
   local combined_nodes_count = 0
   for node1, node2 in iter do
-    if node_info.colors[node1] == node_info.colors[node2] then
-      combine_nodes(node_info, node1, node2)
+    if graph.colors[node1] == graph.colors[node2] then
+      combine_nodes(graph, node1, node2)
       combined_nodes_count = combined_nodes_count + 1
     end
   end
@@ -115,14 +115,14 @@ function simplify_nodes(node_info)
 end
 
 function get_connections(board)
-  node_info = board_to_nodes(board)
+  graph = board_to_nodes(board)
   fully_simplified = false
   while not fully_simplified do
-    num_simplified = simplify_nodes(node_info)
+    num_simplified = simplify_nodes(graph)
     fully_simplified = num_simplified == 0
   end
 
-  return node_info
+  return graph
 end
 
 function print_thing(a)
