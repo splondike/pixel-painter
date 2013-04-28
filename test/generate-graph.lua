@@ -132,9 +132,16 @@ function graph_solver(graph)
     local best_color = nil
     local largest_group = 0
     for color,groups in pairs(color_groups) do
-      if table.getn(groups) > largest_group then
+      local new_connections = {}
+      for _,group in pairs(groups) do
+        for con in pairs(graph.connections[group]) do
+          new_connections[con] = true
+        end
+      end
+
+      if len_map(new_connections) > largest_group then
         best_color = color
-        largest_group = table.getn(groups)
+        largest_group = len_map(new_connections)
       end
     end
 
@@ -157,10 +164,10 @@ function print_thing(a)
 end
 
 test_board = {
-  {1, 2, 1, 1, 1, 1},
+  {1, 2, 3, 1, 1, 1},
   {1, 2, 1, 2, 2, 1},
   {1, 2, 1, 2, 2, 1},
-  {1, 2, 1, 1, 2, 1},
+  {1, 2, 3, 1, 2, 1},
   {1, 2, 2, 2, 2, 1},
   {1, 1, 1, 1, 1, 1},
 }
@@ -168,7 +175,6 @@ test_board = {
 a = get_connections(test_board)
 --print_thing(a)
 solution = graph_solver(a)
-print(table.getn(solution))
 local rtn = "{"
 for _,move in pairs(solution) do
   rtn = rtn .. move .. ","
