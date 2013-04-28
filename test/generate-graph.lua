@@ -106,6 +106,46 @@ function get_connections(board)
   return graph
 end
 
+-- Don't know how to do this in Lua without internet, hence this
+function len_map(map)
+  local count = 0
+  for _ in pairs(map) do
+    count = count + 1
+  end
+  return count
+end
+
+function graph_solver(graph)
+  local moves = {}
+  while len_map(graph.connections[1]) > 0 do
+    -- Group the connections
+    local color_groups = {}
+    for group in pairs(graph.connections[1]) do
+      local color = graph.colors[group]
+
+      if color_groups[color] == nil then
+        color_groups[color] = {}
+      end
+      table.insert(color_groups[color], group)
+    end
+
+    local best_color = nil
+    local largest_group = 0
+    for color,groups in pairs(color_groups) do
+      if table.getn(groups) > largest_group then
+        best_color = color
+        largest_group = table.getn(groups)
+      end
+    end
+
+    table.insert(moves, best_color)
+    for _,group in pairs(color_groups[best_color]) do
+      combine_nodes(graph, 1, group)
+    end
+  end
+  return moves
+end
+
 function print_thing(a)
   for k,v in pairs(a.connections) do
     local row = k .. ": {"
@@ -126,4 +166,12 @@ test_board = {
 }
 
 a = get_connections(test_board)
-print_thing(a)
+--print_thing(a)
+solution = graph_solver(a)
+print(table.getn(solution))
+local rtn = "{"
+for _,move in pairs(solution) do
+  rtn = rtn .. move .. ","
+end
+rtn = rtn .. "}"
+print(rtn)
