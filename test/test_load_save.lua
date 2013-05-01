@@ -33,7 +33,7 @@ local function Loc_CoveringContents( tbl1, tbl2 )
 end
 
 as_library = true
-dofile("pixel-painter.lua")
+dofile("../pixel-painter.lua")
 
 --Test that load and save are inverse operations
 
