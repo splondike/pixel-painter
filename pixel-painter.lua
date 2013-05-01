@@ -185,11 +185,16 @@ function solve_graph(graph)
   return moves
 end
 
--- Returns the number of moves the computer took to solve the board
-function calculate_par(board)
+-- Returns a list of the colors to be played to solve the board
+function solve_board(board)
   local graph = board_to_graph(board)
   local solution = solve_graph(graph)
-  return table.getn(solution)
+  return solution
+end
+
+-- Returns the number of moves the computer took to solve the board
+function calculate_par(board)
+  return table.getn(solve_board(board))
 end
 
 --Returns a randomly coloured board of the indicated dimensions
@@ -207,23 +212,20 @@ function generate_board(board_dimension, seed)
 	return board
 end
 
---Flood fills the board from the top left using selected_colour
---Returns the number of boxes filled
-function fill_board(board, fill_colour, x, y, original_colour, non_matching)
+-- Flood fills the board from the top left using selected_colour
+--
+-- NOTE: Mutates the board
+function fill_board(board, fill_colour, x, y, original_colour)
 	local board_dimension = table.getn(board)
 	if x > 0 and y > 0 and x <= board_dimension and y <= board_dimension then
 		if board[x][y] == original_colour then
 			board[x][y] = fill_colour
-			return fill_board(board, fill_colour, x - 1, y, original_colour, non_matching) + 
-				   fill_board(board, fill_colour, x, y - 1, original_colour, non_matching) +
-				   fill_board(board, fill_colour, x + 1, y, original_colour, non_matching) +
-				   fill_board(board, fill_colour, x, y + 1, original_colour, non_matching) + 1
-		elseif(non_matching ~= nil and board[x][y] ~= fill_colour) then
-			table.insert(non_matching, {x,y})
+			fill_board(board, fill_colour, x - 1, y, original_colour, non_matching)
+			fill_board(board, fill_colour, x, y - 1, original_colour, non_matching)
+			fill_board(board, fill_colour, x + 1, y, original_colour, non_matching)
+			fill_board(board, fill_colour, x, y + 1, original_colour, non_matching)
 		end
 	end
-
-	return 0
 end
 
 --Checks whether the given board is a single colour
