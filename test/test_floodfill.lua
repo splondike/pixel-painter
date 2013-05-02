@@ -46,24 +46,9 @@ expected_result = {
 	{2, 2, 3, 3},
 	{3, 3, 3, 2},
 }
---Order is important to Loc_CoveringContents
-expected_non_matching = {{3,2}, {3,1}, {1,2}, {2,4}, {4,4}, {1,4}}
 
-non_matching = {}
-num_filled = fill_board(test_board, 3, 1, 1, 1, non_matching)
---Remove duplicates from non_matching
-temp = {}
-for k,v in pairs(non_matching) do
-	temp[v[1]..":"..v[2]] = v
-end
-non_matching = {}
-for k, v in pairs(temp) do
-	table.insert(non_matching, v)
-end
-
-assert(num_filled == 10)
+fill_board(test_board, 3, 1, 1, 1, non_matching)
 assert(Loc_CoveringContents(test_board, expected_result))
-assert(Loc_CoveringContents(non_matching, expected_non_matching))
 
 test_board = {
 	{1, 2, 1, 2, 1},
@@ -81,7 +66,5 @@ expected_result = {
 	{2, 2, 2, 2, 1},
 }
 
-num_filled = fill_board(test_board, 3, 1, 1, 1)
-
-assert(num_filled == 11)
+fill_board(test_board, 3, 1, 1, 1)
 assert(Loc_CoveringContents(test_board, expected_result))
