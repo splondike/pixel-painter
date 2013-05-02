@@ -44,34 +44,34 @@ function board_to_nodes(board)
 		return (y - 1) * board_dim + x
 	end
 
-	local node_colors = {}
+	local node_colours = {}
 	local connections_map = {}
 	for i = 1,board_dim*board_dim do
 		connections_map[i] = {}
 	end
 
-	-- Add in all the nodes and color information
+	-- Add in all the nodes and colour information
 	for y = 1,board_dim do
 		for x = 1,board_dim do
 			local curr_node_id = xy_to_flat(x, y)
-			node_colors[curr_node_id] = board[y][x]
+			node_colours[curr_node_id] = board[y][x]
 
 			if x < board_dim then
 				local other_node_id = xy_to_flat(x + 1, y)
 				connections_map[curr_node_id][other_node_id] = true
 				connections_map[other_node_id][curr_node_id] = true
-				node_colors[other_node_id] = board[y][x + 1]
+				node_colours[other_node_id] = board[y][x + 1]
 			end
 			if y < board_dim then
 				local other_node_id = xy_to_flat(x, y + 1)
 				connections_map[curr_node_id][other_node_id] = true
 				connections_map[other_node_id][curr_node_id] = true
-				node_colors[other_node_id] = board[y + 1][x]
+				node_colours[other_node_id] = board[y + 1][x]
 			end
 		end
 	end
 
-	return {connections = connections_map, colors = node_colors}
+	return {connections = connections_map, colours = node_colours}
 end
 
 -- For the given graph, combine node1 and node2 into
@@ -93,12 +93,12 @@ function combine_nodes(graph, node1, node2)
 	-- Remove the reference to the larger node from the small
 	graph.connections[small][large] = nil
 	-- Delete the larger node's info
-	graph.colors[large] = nil
+	graph.colours[large] = nil
 	graph.connections[large] = nil
 end
 
 -- Simplifies a node collection by combining adjacent nodes of the same
--- color
+-- colour
 -- NOTE: Mutates the passed in table (saves memory)
 --
 -- @return the number of nodes simplified
@@ -125,7 +125,7 @@ function simplify_nodes(graph)
 
 	local combined_nodes_count = 0
 	for node1, node2 in iter do
-		if graph.colors[node1] == graph.colors[node2] then
+		if graph.colours[node1] == graph.colours[node2] then
 			combine_nodes(graph, node1, node2)
 			combined_nodes_count = combined_nodes_count + 1
 		end
@@ -151,19 +151,19 @@ function solve_graph(graph)
 	local moves = {}
 	while len_map(graph.connections[1]) > 0 do
 		-- Group the connections
-		local color_groups = {}
+		local colour_groups = {}
 		for group in pairs(graph.connections[1]) do
-			local color = graph.colors[group]
+			local colour = graph.colours[group]
 
-			if color_groups[color] == nil then
-				color_groups[color] = {}
+			if colour_groups[colour] == nil then
+				colour_groups[colour] = {}
 			end
-			table.insert(color_groups[color], group)
+			table.insert(colour_groups[colour], group)
 		end
 
-		local best_color = nil
+		local best_colour = nil
 		local largest_group = 0
-		for color,groups in pairs(color_groups) do
+		for colour,groups in pairs(colour_groups) do
 			local new_connections = {}
 			for _,group in pairs(groups) do
 				for con in pairs(graph.connections[group]) do
@@ -172,20 +172,20 @@ function solve_graph(graph)
 			end
 
 			if len_map(new_connections) > largest_group then
-				best_color = color
+				best_colour = colour
 				largest_group = len_map(new_connections)
 			end
 		end
 
-		table.insert(moves, best_color)
-		for _,group in pairs(color_groups[best_color]) do
+		table.insert(moves, best_colour)
+		for _,group in pairs(colour_groups[best_colour]) do
 			combine_nodes(graph, 1, group)
 		end
 	end
 	return moves
 end
 
--- Returns a list of the colors to be played to solve the board
+-- Returns a list of the colours to be played to solve the board
 function solve_board(board)
 	local graph = board_to_graph(board)
 	local solution = solve_graph(graph)
