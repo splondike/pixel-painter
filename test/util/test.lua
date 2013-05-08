@@ -32,4 +32,16 @@ function tables_equal( tbl1, tbl2 )
     return true     -- covered it all!
 end
 
-
+-- Turns the given graph into a human-readable string
+function graph_to_string(graph)
+  local rtn = "graph: {\n"
+  for node, connections in pairs(graph.connections) do
+    local blah = ""
+    for c in pairs(connections) do
+      blah = blah .. c .. ", "
+    end
+    rtn = rtn .. "\t" .. node .. ": " .. blah .. "\n"
+  end
+  rtn = rtn .. "}\n"
+  return rtn
+end
