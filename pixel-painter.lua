@@ -82,6 +82,8 @@ function combine_nodes(graph, node1, node2, delete_combined_node)
 	  delete_combined_node = false
 	end
 	local small, large = math.min(node1, node2), math.max(node1, node2)
+	local move_made = {remaining_node = small, merged_nodes = {}, connections_added = {}}
+	move_made.merged_nodes[large] = true
 
 	for other_node in pairs(graph.connections[large]) do
 		if other_node ~= small then
@@ -89,8 +91,9 @@ function combine_nodes(graph, node1, node2, delete_combined_node)
 			graph.connections[other_node][large] = nil
 			graph.connections[other_node][small] = true
 
-			-- Combine the sets of connections into the smaller node
+			-- And the smaller node to the larger node's connections
 			graph.connections[small][other_node] = true
+			move_made.connections_added[other_node] = true
 		end
 	end
 	-- Remove the reference to the larger node from the small
@@ -101,6 +104,8 @@ function combine_nodes(graph, node1, node2, delete_combined_node)
 	  graph.colours[large] = nil
 	  graph.connections[large] = nil
 	end
+
+	return move_made
 end
 
 -- Simplifies a node collection by combining adjacent nodes of the same
@@ -189,6 +194,49 @@ function solve_graph(graph)
 		end
 	end
 	return moves
+end
+
+-- Restores graph to the state it was before move was made
+--
+-- NOTE: Be very careful that the graph 'move' was generated in
+-- is the same as graph, otherwise the board will not be changed
+-- to the state you expect
+function undo_move(graph, move)
+  -- Remove connections added to remaining_node
+  for connection in pairs(move.connections_added) do
+    graph.connections[move.remaining_node][connection] = nil
+    graph.connections[connection][move.remaining_node] = nil
+  end
+
+  -- Re-instate connections from the merged nodes
+  for node in pairs(move.merged_nodes) do
+    for other_node in pairs(graph.connections[node]) do
+      graph.connections[other_node][node] = true
+    end
+  end
+end
+
+-- Combines the list of moves into a single move containing the same information.
+-- Will throw an exception if moves which can't be combined are in the list
+function combine_moves(moves)
+  local rtn = {remaining_node = 1, merged_nodes = {}, connections_added = {}}
+  for _,move in pairs(moves) do
+    local different_nodes = rtn.remaining_node ~= move.remaining_node
+    if rtn.remaining_node ~= nil and different_nodes then
+      error("Trying to combine moves with different remaining_node, not possible.")
+    end
+    rtn.remaining_node = move.remaining_node
+
+    for merged_node in pairs(move.merged_nodes) do
+      rtn.merged_nodes[merged_node] = true
+    end
+
+    for connection in pairs(move.connections_added) do
+      rtn.connections_added[connection] = true
+    end
+  end
+
+  return rtn
 end
 
 -- Returns a list of the colours to be played to solve the board
