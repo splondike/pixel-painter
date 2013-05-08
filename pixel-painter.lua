@@ -76,8 +76,11 @@ end
 
 -- For the given graph, combine node1 and node2 into
 -- one (taking the smaller of the two nodes as the new number)
-function combine_nodes(graph, node1, node2)
+function combine_nodes(graph, node1, node2, delete_combined_node)
 	assert (node1 ~= node2)
+	if delete_combined_node == nil then
+	  delete_combined_node = false
+	end
 	local small, large = math.min(node1, node2), math.max(node1, node2)
 
 	for other_node in pairs(graph.connections[large]) do
@@ -92,9 +95,12 @@ function combine_nodes(graph, node1, node2)
 	end
 	-- Remove the reference to the larger node from the small
 	graph.connections[small][large] = nil
+
 	-- Delete the larger node's info
-	graph.colours[large] = nil
-	graph.connections[large] = nil
+	if delete_combined_node then
+	  graph.colours[large] = nil
+	  graph.connections[large] = nil
+	end
 end
 
 -- Simplifies a node collection by combining adjacent nodes of the same
@@ -126,7 +132,7 @@ function simplify_nodes(graph)
 	local combined_nodes_count = 0
 	for node1, node2 in iter do
 		if graph.colours[node1] == graph.colours[node2] then
-			combine_nodes(graph, node1, node2)
+			combine_nodes(graph, node1, node2, true)
 			combined_nodes_count = combined_nodes_count + 1
 		end
 	end
