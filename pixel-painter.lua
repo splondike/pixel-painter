@@ -198,27 +198,48 @@ function solve_graph(graph)
 		}
 	end
 
+	local function gen_cache_key(connections) 
+		local nodes = {}
+		for node in pairs(connections) do
+			table.insert(nodes, node)
+		end
+		table.sort(nodes)
+		return table.concat(nodes, " ")
+	end
+
 	local best_solution = nil
 	local steps = {}
 	local all_paths_checked = false
+	local paths_cache = {}
 
 	-- Allows us to skip colours we've already tried when backtracking
 	local last_colour = nil
 	repeat
-		-- Solve until the end
-		while len_map(graph.connections[1]) > 0 do
+		local cached_tail = nil
+		-- Solve until the end or a cache hit
+		repeat
 			step_made = make_next_step(graph, last_colour)
 			table.insert(steps, step_made)
 			last_colour = nil
+
+			cached_tail = paths_cache[gen_cache_key(graph.connections[1])]
+		until cached_tail ~= nil or len_map(graph.connections[1]) == 0
+
+		-- Calculate the moves to this point as a list of colours
+		local solution = {}
+		for _, step in ipairs(steps) do
+			table.insert(solution, step.current_colour)
+		end
+		-- Add the cached solution for the remainder of the map
+		if cached_tail ~= nil then
+			for _, colour in ipairs(cached_tail) do
+				table.insert(solution, colour)
+			end
 		end
 
-
 		-- Keep the best solution
-		if best_solution == nil or table.getn(steps) < table.getn(best_solution) then
-			best_solution = {}
-			for _,step in ipairs(steps) do
-				table.insert(best_solution, step.current_colour)
-			end
+		if best_solution == nil or table.getn(solution) < table.getn(best_solution) then
+			best_solution = solution
 		end
 
 		-- Backtrack until we find something we haven't checked
@@ -228,6 +249,21 @@ function solve_graph(graph)
 			if step.current_colour ~= step.final_colour then
 				last_colour = step.current_colour
 				break
+			else
+				-- Add a cache
+				-- TODO: value is not right (cache hit not working)
+				-- This isn't fast enough (increases speed by factor of ~60)
+				-- If we make the selector pick the most likely connection
+				-- each time, and check for lengths more than solution,
+				-- then we might run a lot faster as we'd be optimizing an
+				-- already good solution
+				local value = {step.current_colour}
+				for _,colour in ipairs(cached_tail or {}) do
+					table.insert(value, colour)
+				end
+				local key = gen_cache_key(graph.connections[1])
+				--print(key, table.concat(value, ","))
+				paths_cache[key] = value
 			end
 		until table.getn(steps) == 0
 
