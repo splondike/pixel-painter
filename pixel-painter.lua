@@ -92,8 +92,10 @@ function combine_nodes(graph, node1, node2, delete_combined_node)
 			graph.connections[other_node][small] = true
 
 			-- And the smaller node to the larger node's connections
-			graph.connections[small][other_node] = true
-			move_made.connections_added[other_node] = true
+			if not graph.connections[small][other_node] then
+				move_made.connections_added[other_node] = true
+				graph.connections[small][other_node] = true
+			end
 		end
 	end
 	-- Remove the reference to the larger node from the small
@@ -159,41 +161,80 @@ end
 
 -- Returns a solution to the given graph
 function solve_graph(graph)
-	local moves = {}
-	while len_map(graph.connections[1]) > 0 do
+	local function make_next_step(graph, last_colour)
 		-- Group the connections
+		local last_index = 0
+		local available_colours = {}
 		local colour_groups = {}
 		for group in pairs(graph.connections[1]) do
 			local colour = graph.colours[group]
 
 			if colour_groups[colour] == nil then
 				colour_groups[colour] = {}
+				table.insert(available_colours, colour)
 			end
 			table.insert(colour_groups[colour], group)
 		end
-
-		local best_colour = nil
-		local largest_group = 0
-		for colour,groups in pairs(colour_groups) do
-			local new_connections = {}
-			for _,group in pairs(groups) do
-				for con in pairs(graph.connections[group]) do
-					new_connections[con] = true
-				end
-			end
-
-			if len_map(new_connections) > largest_group then
-				best_colour = colour
-				largest_group = len_map(new_connections)
+		table.sort(available_colours)
+		for i, colour in ipairs(available_colours) do
+			if colour == last_colour then
+				last_index = i
 			end
 		end
 
-		table.insert(moves, best_colour)
-		for _,group in pairs(colour_groups[best_colour]) do
-			combine_nodes(graph, 1, group)
+		assert(last_index < table.getn(available_colours))
+		local next_colour = available_colours[last_index + 1]
+
+		-- Make the move
+		local moves = {}
+		for _,group in pairs(colour_groups[next_colour]) do
+			table.insert(moves, combine_nodes(graph, 1, group))
 		end
+
+		return {
+			final_colour = available_colours[table.getn(available_colours)],
+			current_colour = next_colour,
+			move = combine_moves(moves),
+		}
 	end
-	return moves
+
+	local best_solution = nil
+	local steps = {}
+	local all_paths_checked = false
+
+	-- Allows us to skip colours we've already tried when backtracking
+	local last_colour = nil
+	repeat
+		-- Solve until the end
+		while len_map(graph.connections[1]) > 0 do
+			step_made = make_next_step(graph, last_colour)
+			table.insert(steps, step_made)
+			last_colour = nil
+		end
+
+
+		-- Keep the best solution
+		if best_solution == nil or table.getn(steps) < table.getn(best_solution) then
+			best_solution = {}
+			for _,step in ipairs(steps) do
+				table.insert(best_solution, step.current_colour)
+			end
+		end
+
+		-- Backtrack until we find something we haven't checked
+		repeat
+			local step = table.remove(steps)
+			undo_move(graph, step.move)
+			if step.current_colour ~= step.final_colour then
+				last_colour = step.current_colour
+				break
+			end
+		until table.getn(steps) == 0
+
+		all_paths_checked = table.getn(steps) == 0
+	until all_paths_checked
+
+	return best_solution
 end
 
 -- Restores graph to the state it was before move was made
