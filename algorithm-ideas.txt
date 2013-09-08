@@ -1,0 +1,4 @@
+ideas for pixel painter algorithm:
+* Find a size which doesn't take too long for the brute force algorithm to solve (say minutes), but add big as possible. This might allow for some analysis of where the algorithm should focus its search. Check how the optimal solution differs from the "pick node with most connections" approach.
+* Taking a large number of random solutions for a large graph may show what the probability distribution of solutions looks like. This could allow for estimation of the efficacy of a simple random selection algorithm, as well as how varied solutions can be, and how good the pick node with most conns is.
+* Perhaps trying a number of random solutions, then optimizing the best one from the bottom might work well.
